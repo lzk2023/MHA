@@ -33,6 +33,8 @@ output reg [15:0]  O_PRODUCT  //product     (积)
 wire    [14:0]  ab_m1     ;
 wire    [14:0]  ab_m2     ;//calculate m1,m2 absolute value(用于计算m1m2绝对值)
 wire    [29:0]  product_reg_n;
+wire    [29:0]  prod_shift;
+wire    [14:0]  o_product_sel;
 
 reg             prd_msb   ;//product msb   积符号位
 reg     [29:0]  product_reg;//15 bits * 15bits
@@ -42,11 +44,12 @@ reg     [14:0]  ab_m2_reg ;//reg input(absolute value)  寄存输入数据绝对
 assign ab_m1 = I_M1[15] ? ~I_M1[14:0] + 1 : I_M1[14:0];
 assign ab_m2 = I_M2[15] ? ~I_M2[14:0] + 1 : I_M2[14:0];//calculate m1,m2 absolute value(用于计算m1m2绝对值)
 assign product_reg_n = ~product_reg + 1;
+assign o_product_sel = prd_msb ? product_reg_n[27:13] : product_reg[27:13];
 
 always@(posedge I_CLK or negedge I_RST_N)begin
     if(!I_RST_N)begin
-        ab_m1_reg  <= 16'b0;
-        ab_m2_reg  <= 16'b0;
+        ab_m1_reg  <= 'b0;
+        ab_m2_reg  <= 'b0;
         prd_msb    <=      0;
         O_MUL_BUSY <=      0;
     end else if(I_VLD & !O_MUL_BUSY)begin          //clk 1:calculate and store m1,m2 absolute value 计算绝对值并寄存
@@ -58,33 +61,33 @@ always@(posedge I_CLK or negedge I_RST_N)begin
         ab_m1_reg <= ab_m1_reg << 5;                          //clk 2/3/4:pipeline_3
         ab_m2_reg <= ab_m2_reg >> 5;
     end else begin
-        ab_m1_reg   <=     16'b0;
-        ab_m2_reg   <=     16'b0;
-        prd_msb     <=         0;
-        O_MUL_BUSY  <=         0;
+        ab_m1_reg   <=     'b0;
+        ab_m2_reg   <=     'b0;
+        prd_msb     <=       0;
+        O_MUL_BUSY  <=       0;
     end
 end
 
 always@(posedge I_CLK or negedge I_RST_N)begin
     if(!I_RST_N)begin
-        product_reg <= 30'b0;
+        product_reg <= 'b0;
         O_VLD       <= 0;
         O_PRODUCT   <= 'b0;
     end else if(O_MUL_BUSY & ab_m2_reg != 0)begin
-        product_reg <= product_reg + ab_m1_reg * ab_m2_reg[4:0];
+        product_reg <= product_reg + prod_shift;  //add shift 累加移位结果
     end else if(O_MUL_BUSY & ab_m2_reg == 0)begin
         O_VLD <= 1;
-        product_reg <= 30'b0;
-        if(prd_msb)begin
-            O_PRODUCT[15]   <= prd_msb;
-            O_PRODUCT[14:0] <= product_reg_n[27:13];
-        end else begin
-            O_PRODUCT <= {prd_msb,product_reg[27:13]};
-        end
+        product_reg <= 'b0;
+        O_PRODUCT <= {prd_msb,o_product_sel};     //select output 选择输出
     end else begin
-        product_reg <= 30'b0;
+        product_reg <= 'b0;
         O_VLD       <= 0;
         O_PRODUCT   <= 'b0;
     end
 end
+mul_shift5 u_mul6_shift5(
+.I_IN1(ab_m1_reg),
+.I_IN2(ab_m2_reg[4:0]),
+.O_OUT(prod_shift)
+    );
 endmodule

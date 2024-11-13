@@ -97,10 +97,9 @@ always@(posedge I_CLK)begin
     if(O_MUL_DONE)begin
         o_comp_32  = $signed(I_X) * $signed(I_W);
         o_comp_16  = $signed({o_comp_32[31],o_comp_32[27:13]}) + $signed(I_D);
-        #10
-        I_X_VLD =   0;
-        I_W_VLD =   0;
-        I_D_VLD =   0;
+        I_X_VLD <=   0;
+        I_W_VLD <=   0;
+        I_D_VLD <=   0;
         #10
         I_X = $random;
         I_W = $random;

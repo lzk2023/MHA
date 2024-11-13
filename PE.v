@@ -38,14 +38,14 @@ output reg [15:0] O_OUT     //output data(down shift)
 
 wire        i_mul_vld;
 wire        o_mul_vld;
-wire        o_mul_out;
+wire [15:0] o_mul_out;
 wire        mul_busy ;
 
 reg [15:0]     i_x_ff;
 
 assign O_MUL_DONE = o_mul_vld;
-assign mul_vld = I_X_VLD & I_W_VLD;
-//assign O_OUT = I_D_VLD ? mul_out + I_D : 16'bz;
+assign i_mul_vld = I_X_VLD & I_W_VLD;
+//assign O_OUT = I_D_VLD ? o_mul_out + I_D : 16'bz;
 always@(posedge I_CLK or negedge I_RST_N)begin
     if (!I_RST_N) begin
         i_x_ff <= 16'b0;
@@ -61,7 +61,7 @@ always@(posedge I_CLK or negedge I_RST_N)begin
         O_OUT     <= 16'b0;
         O_OUT_VLD <= 1'b0;
     end else if(I_D_VLD & o_mul_vld)begin
-        O_OUT     <= mul_out + I_D;
+        O_OUT     <= o_mul_out + I_D;
         O_OUT_VLD <= 1'b1;
     end else begin
         O_OUT     <= 16'b0;
@@ -82,7 +82,7 @@ always@(posedge I_CLK or negedge I_RST_N)begin
     end
 end
 
-multiplier_16 u_dut_mul_16(
+multiplier_16 u_mul_16(
 .I_CLK     (I_CLK    ),
 .I_RST_N   (I_RST_N  ),
 .I_VLD     (i_mul_vld),//input valid
@@ -90,6 +90,6 @@ multiplier_16 u_dut_mul_16(
 .I_M2      (I_W      ),//multiplier  (乘数)
 .O_VLD     (o_mul_vld),//output valid
 .O_MUL_BUSY(mul_busy ),
-.O_PRODUCT (mul_out  ) //product     (积)
+.O_PRODUCT (o_mul_out) //product     (积)
 );
 endmodule

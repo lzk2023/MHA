@@ -28,24 +28,24 @@ module SA #(
 input                      I_CLK       ,
 input                      I_RST_N     ,
 input                      I_START_FLAG,
+input                      I_END_FLAG  ,
 input      [(S*16)-1:0]    I_X         ,//input x(from left)
 input      [(S*16)-1:0]    I_W         ,//input weight(from ddr)
 input      [(S*16)-1:0]    I_D         ,//input data(from up)
-output     [(S-1):0]       O_X_VLD     ,
-output     [(S*16)-1:0]    O_X         ,//output x(right shift)
-output     [63:0]          O_OUT_VLD   ,
+output                     O_SHIFT     ,//PE shift,O_SHIFT <= 1
 output     [(64*16)-1:0]   O_OUT        //output data(down shift),
 );
 localparam S_IDLE = 0;
 localparam S_CAL  = 1;
 reg                             state     ;
 reg        [2:0]                cycle_cnt ;
-reg        []                   pe_sft_cnt;
 reg                             x_vld     ;
 reg                             w_vld     ;
 reg                             d_vld     ;
 wire       [S*64*16-1:0]        data_i_o  ;
 wire       [S*64*16-1:0]        x_i_o     ;
+
+assign O_OUT = data_i_o[S*64*16-1:(S-1)*64*16];
 
 always@(posedge I_CLK or negedge I_RST_N)begin
     if(!I_RST_N)begin
@@ -68,7 +68,7 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                 end
             end
             S_CAL :begin
-                if()begin
+                if(I_END_FLAG)begin
                     x_vld     <= 0;
                     w_vld     <= 0;
                     d_vld     <= 0;
@@ -102,11 +102,11 @@ generate                                                //     S |              
                 PE u_PE(
                     .I_CLK     (I_CLK  ),
                     .I_RST_N   (I_RST_N),
-                    .I_X_VLD   (),
+                    .I_X_VLD   (x_vld),
                     .I_X       (I_X[j*16 +: 16]),//input x(from left)
-                    .I_W_VLD   (),
+                    .I_W_VLD   (w_vld),
                     .I_W       (I_W[(j*64+i)*16 +: 16]),//input weight(from ddr)
-                    .I_D_VLD   (),
+                    .I_D_VLD   (d_vld),
                     .I_D       (16'b0),//input data(from up)
                     .O_X_VLD   (),
                     .O_X       (x_i_o[j*64*16 +: 16]),//output x(right shift)
@@ -119,11 +119,11 @@ generate                                                //     S |              
                 PE u_PE(
                     .I_CLK     (I_CLK  ),
                     .I_RST_N   (I_RST_N),
-                    .I_X_VLD   (),
+                    .I_X_VLD   (x_vld),
                     .I_X       (I_X[j*16 +: 16]),//input x(from left)
-                    .I_W_VLD   (),
+                    .I_W_VLD   (w_vld),
                     .I_W       (I_W[(j*64+i)*16 +: 16]),//input weight(from ddr)
-                    .I_D_VLD   (),
+                    .I_D_VLD   (d_vld),
                     .I_D       (data_i_o[((j-1)*64+i)*16 +: 16]),//input data(from up)
                     .O_X_VLD   (),
                     .O_X       (x_i_o[j*64*16 +: 16]),//output x(right shift)
@@ -135,11 +135,11 @@ generate                                                //     S |              
                 PE u_PE(
                     .I_CLK     (I_CLK  ),
                     .I_RST_N   (I_RST_N),
-                    .I_X_VLD   (),
+                    .I_X_VLD   (x_vld),
                     .I_X       (x_i_o[(j*64+(i-1))*16 +: 16]),//input x(from left)
-                    .I_W_VLD   (),
+                    .I_W_VLD   (w_vld),
                     .I_W       (I_W[(j*64+i)*16 +: 16]),//input weight(from ddr)
-                    .I_D_VLD   (),
+                    .I_D_VLD   (d_vld),
                     .I_D       (16'b0),//input data(from up)
                     .O_X_VLD   (),
                     .O_X       (x_i_o[(j*64+i)*16 +: 16]),//output x(right shift)
@@ -151,11 +151,11 @@ generate                                                //     S |              
                 PE u_PE(
                     .I_CLK     (I_CLK  ),
                     .I_RST_N   (I_RST_N),
-                    .I_X_VLD   (),
+                    .I_X_VLD   (x_vld),
                     .I_X       (x_i_o[(j*64+(i-1))*16 +: 16]),//input x(from left)
-                    .I_W_VLD   (),
+                    .I_W_VLD   (w_vld),
                     .I_W       (I_W[(j*64+i)*16 +: 16]),//input weight(from ddr)
-                    .I_D_VLD   (),
+                    .I_D_VLD   (d_vld),
                     .I_D       (data_i_o[((j-1)*64+i)*16 +: 16]),//input data(from up)
                     .O_X_VLD   (),
                     .O_X       (x_i_o[(j*64+i)*16 +: 16]),//output x(right shift)

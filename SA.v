@@ -30,8 +30,7 @@ input                      I_RST_N     ,
 input                      I_START_FLAG,
 input                      I_END_FLAG  ,
 input      [(S*16)-1:0]    I_X         ,//input x(from left)
-input      [(S*16)-1:0]    I_W         ,//input weight(from ddr)
-input      [(S*16)-1:0]    I_D         ,//input data(from up)
+input      [(S*64*16)-1:0] I_W         ,//input weight(from ddr)
 output                     O_SHIFT     ,//PE shift,O_SHIFT <= 1
 output     [(64*16)-1:0]   O_OUT        //output data(down shift),
 );

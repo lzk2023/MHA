@@ -27,39 +27,70 @@ module SA_wrapper#(
 ) (
     input                        I_CLK       ,
     input                        I_RST_N     ,
-    input                        I_START_FLAG,
-    input   [(S*X_R*16)-1:0]     I_X         ,//input x(from left)
-    input   [(S*64*16)-1:0]      I_W         ,//input weight(from ddr)
-    output                       O_OUT_VLD   ,
-    output  [(X_R*64*16)-1:0]    O_OUT        //OUT.shape = (X_R,64)
-);
+    input                        I_START_FLAG,//                                               X_R    
+    input   [(S*X_R*16)-1:0]     I_X         ,//input x(from left)     matrix x:     x|<------------------>|
+    input   [(S*64*16)-1:0]      I_W         ,//input weight(from ddr)               |
+    output                       O_OUT_VLD   ,//                                   S |
+    output  [(X_R*64*16)-1:0]    O_OUT        //OUT.shape = (X_R,64)                 |
+);                                            //                                     x
+localparam X_SEL_W = $clog2(S+X_R-1+64);
+
 wire                             pe_shift    ;
+wire        [(S*16)-1:0]         sa_x_in     ;
 wire        [(64*16)-1:0]        sa_out      ;
 
-reg [15:0] x_matrix [S+X_R-2:0] [S-1:0]      ;
+wire [15:0] x_matrix [0:S-1] [0:S+X_R-2]     ;
+reg [X_SEL_W-1:0] x_sel   ;
+reg               end_flag;
 
 genvar i;
 genvar j;
 generate
     for(j=0;j<S;j=j+1)begin
         for(i=0;i<S+X_R-1;i=i+1)begin
-            always@(posedge I_CLK or negedge I_RST_N)begin
-                if(!I_RST_N)begin
-                    x_matrix[i][j] <= 0;
-                end else begin
-                end
+            if(i>=S-1-j & i<S-1-j+X_R)begin
+                assign x_matrix[j][i] = I_X[(j*X_R+(i-(S-1-j)))*16 +: 16];
+            end else begin
+                assign x_matrix[j][i] = 0;
             end
         end
     end
 endgenerate
+
+genvar k;
+generate
+    for(k=0;k<S;k=k+1)begin
+        assign sa_x_in[k*16+:16] = (x_sel < S+X_R-1) ? x_matrix[k] [S+X_R-2-x_sel] : 0;
+    end
+endgenerate
+always@(posedge I_CLK or negedge I_RST_N)begin
+    if(!I_RST_N)begin
+        x_sel <= 0;
+        end_flag <= 0;
+    end else if(I_START_FLAG)begin
+        x_sel <= 0;
+        end_flag <= 0;
+    end else if(pe_shift)begin
+        if(x_sel < S+X_R-1+64)begin
+            x_sel <= x_sel + 1;
+            end_flag <= 0;
+        end else begin
+            x_sel <= x_sel;
+            end_flag <= 1;
+        end
+    end else begin
+        x_sel <= x_sel;
+        end_flag <= 0;
+    end
+end
 SA #(
     .S           (S           )
 ) u_SA (
     .I_CLK       (I_CLK       ),
     .I_RST_N     (I_RST_N     ),
     .I_START_FLAG(I_START_FLAG),
-    .I_END_FLAG  (),
-    .I_X         (),//input x(from left)
+    .I_END_FLAG  (end_flag    ),
+    .I_X         (sa_x_in     ),//input x(from left)
     .I_W         (I_W         ),//input weight(from ddr)
     .O_SHIFT     (pe_shift    ),//PE shift,O_SHIFT <= 1
     .O_OUT       (sa_out      ) //output data(down shift),

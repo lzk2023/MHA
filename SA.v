@@ -34,32 +34,25 @@ input      [(S*64*16)-1:0] I_W         ,//input weight(from ddr)
 output                     O_SHIFT     ,//PE shift,O_SHIFT <= 1
 output     [(64*16)-1:0]   O_OUT        //output data(down shift),
 );
-localparam S_IDLE = 0;
-localparam S_CAL  = 1;
+localparam S_IDLE = 1'b0;
+localparam S_CAL  = 1'b1;
 reg                             state     ;
-reg        [2:0]                cycle_cnt ;
 reg                             x_vld     ;
 reg                             w_vld     ;
 reg                             d_vld     ;
 wire       [S*64*16-1:0]        data_i_o  ;
 wire       [S*64*16-1:0]        x_i_o     ;
+wire                            pe00_vld  ;
 
 assign O_OUT = data_i_o[S*64*16-1:(S-1)*64*16];
+assign O_SHIFT = pe00_vld;
 
 always@(posedge I_CLK or negedge I_RST_N)begin
     if(!I_RST_N)begin
-        x_vld     <= 0;
-        w_vld     <= 0;
-        d_vld     <= 0;
-        cycle_cnt <= 0;
         state     <= 0;
     end else begin
         case(state)
             S_IDLE:begin
-                x_vld     <= 0;
-                w_vld     <= 0;
-                d_vld     <= 0;
-                cycle_cnt <= 0;
                 if(I_START_FLAG)begin
                     state <= S_CAL;
                 end else begin
@@ -68,27 +61,30 @@ always@(posedge I_CLK or negedge I_RST_N)begin
             end
             S_CAL :begin
                 if(I_END_FLAG)begin
-                    x_vld     <= 0;
-                    w_vld     <= 0;
-                    d_vld     <= 0;
-                    cycle_cnt <= 0;
                     state <= S_IDLE;
                 end else begin
                     state <= state;
-                    if(cycle_cnt < 3'd4)begin
-                        x_vld     <= 1;
-                        w_vld     <= 1;
-                        d_vld     <= 1;
-                        cycle_cnt <= cycle_cnt + 1;
-                    end else begin
-                        x_vld     <= 0;
-                        w_vld     <= 0;
-                        d_vld     <= 0;
-                        cycle_cnt <= 3'd0;
-                    end
                 end  
             end
         endcase
+    end
+end
+
+always@(*)begin
+    if(state == S_CAL)begin
+        if(!pe00_vld)begin
+            x_vld = 1;
+            w_vld = 1;
+            d_vld = 1;
+        end else begin
+            x_vld = 0;
+            w_vld = 0;
+            d_vld = 0;
+        end
+    end else begin
+        x_vld = 0;
+        w_vld = 0;
+        d_vld = 0;
     end
 end
                                                         //   SA:                   64
@@ -110,7 +106,7 @@ generate                                                //     S |              
                     .O_X_VLD   (),
                     .O_X       (x_i_o[j*64*16 +: 16]),//output x(right shift)
                     .O_MUL_DONE(),//multiply done,next clk add,ID_VLD <=0
-                    .O_OUT_VLD (),
+                    .O_OUT_VLD (pe00_vld),
                     .O_OUT     (data_i_o[(j*64+i)*16 +: 16])//output data(down shift)
                 );
             end

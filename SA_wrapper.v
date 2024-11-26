@@ -60,7 +60,7 @@ endgenerate
 genvar k;
 generate
     for(k=0;k<S;k=k+1)begin
-        assign sa_x_in[k*16+:16] = (x_sel < S+X_R-1) ? x_matrix[k] [S+X_R-2-x_sel] : 0;
+        assign sa_x_in[k*16+:16] = (x_sel < S+X_R-1) ? x_matrix[k] [S+X_R-2-x_sel] : 16'b0;
     end
 endgenerate
 always@(posedge I_CLK or negedge I_RST_N)begin

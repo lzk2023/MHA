@@ -54,13 +54,11 @@ always@(posedge I_CLK or negedge I_RST_N)begin
     if(!I_RST_N)begin
         ab_m1_reg  <= 'b0;
         ab_m2_reg  <= 'b0;
-        prd_msb    <=   0;
         O_MUL_BUSY <=   0;
         mul_cycle  <=   0;
     end else if(I_VLD & !O_MUL_BUSY)begin          //clk 1:calculate and store m1,m2 absolute value 计算绝对值并寄存
         ab_m1_reg  <= ab_m1;
         ab_m2_reg  <= ab_m2;
-        prd_msb    <= I_M1[15] ^ I_M2[15];
         O_MUL_BUSY <=     1;
         mul_cycle  <=     0;
     //end else if(O_MUL_BUSY & ab_m2_reg != 0)begin
@@ -71,12 +69,27 @@ always@(posedge I_CLK or negedge I_RST_N)begin
     end else begin
         ab_m1_reg   <=     'b0;
         ab_m2_reg   <=     'b0;
-        prd_msb     <=       0;
         O_MUL_BUSY  <=       0;
         mul_cycle  <=        0;
     end
 end
-
+always@(posedge I_CLK or negedge I_RST_N)begin
+    if(!I_RST_N)begin
+        prd_msb    <=   0;
+    end else if(I_VLD & !O_MUL_BUSY)begin
+        if(I_M1 == 0 |I_M2 == 0)begin
+            prd_msb    <= 0;
+        end else if(I_M1 == 16'b1000_0000_0000_0000 | I_M2 == 16'b1000_0000_0000_0000)begin
+            prd_msb    <= 0;
+        end else begin
+            prd_msb    <= I_M1[15] ^ I_M2[15];
+        end
+    end else if(O_MUL_BUSY & mul_cycle < 3)begin
+        prd_msb    <= prd_msb;
+    end else begin
+        prd_msb     <=  0;
+    end
+end
 always@(posedge I_CLK or negedge I_RST_N)begin
     if(!I_RST_N)begin
         product_reg <= 'b0;

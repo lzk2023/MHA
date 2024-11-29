@@ -41,7 +41,7 @@ reg     [1:0]   mul_cycle ;//
 
 assign O_VLD = (O_MUL_BUSY & mul_cycle == 3) ? 1 : 0;
 assign O_PRODUCT = {prod_32[31],prod_32[27:13]};
-assign prod_32 = product_reg - (ab_m2_reg[15] ? ab_m1_reg<<1 : 0);//select output 选择输出
+assign prod_32 = product_reg - (ab_m2_msb ? ab_m1_reg<<1 : 0);//select output 选择输出
 
 always@(posedge I_CLK or negedge I_RST_N)begin
     if(!I_RST_N)begin

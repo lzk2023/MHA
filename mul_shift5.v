@@ -21,13 +21,15 @@
 
 
 module mul_shift5(
-    input  [31:0] I_IN1,
-    input  [4:0] I_IN2,
-    output [31:0] O_OUT
+    input  [31:0] I_IN1 ,
+    input  [4:0]  I_IN2 ,
+    output [31:0] O_OUT ,
+    output [31:0] O_SFT1
     );
     assign O_OUT =  (I_IN2[0] ? I_IN1 : 0)
                         + (I_IN2[1] ? I_IN1<<1 : 0)
                         + (I_IN2[2] ? I_IN1<<2 : 0)
                         + (I_IN2[3] ? I_IN1<<3 : 0)
                         + (I_IN2[4] ? I_IN1<<4 : 0);
+    assign O_SFT1 = I_IN1<<5;
 endmodule

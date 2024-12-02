@@ -64,7 +64,7 @@ always@(posedge I_CLK or negedge I_RST_N)begin
         O_OUT     <= o_mul_out + I_D;
         O_OUT_VLD <= 1'b1;
     end else begin
-        O_OUT     <= 16'b0;
+        O_OUT     <= O_OUT;
         O_OUT_VLD <= 1'b0;
     end
 end
@@ -77,7 +77,7 @@ always@(posedge I_CLK or negedge I_RST_N)begin
         O_X     <= i_x_ff;
         O_X_VLD <= 1'b1  ;
     end else begin
-        O_X     <= 16'b0;
+        O_X     <= O_X  ;
         O_X_VLD <= 1'b0 ;
     end
 end

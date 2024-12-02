@@ -166,13 +166,13 @@ generate                                                //  S(i) |              
                     .I_CLK     (I_CLK  ),
                     .I_RST_N   (I_RST_N),
                     .I_X_VLD   (x_vld),
-                    .I_X       (x_io_matrix[0][j-1]),//input x(from left)
+                    .I_X       (x_io_matrix[i][j-1]),//input x(from left)
                     .I_W_VLD   (w_vld),
                     .I_W       (i_w_matrix[i][j]),//input weight(from ddr)
                     .I_D_VLD   (d_vld),
                     .I_D       (data_io_matrix[i-1][j]),//input data(from up)
                     .O_X_VLD   (),
-                    .O_X       (x_i_o[(i*64+j)*16 +: 16]),//output x(right shift)
+                    .O_X       (x_io_matrix[i][j]),//output x(right shift)
                     .O_MUL_DONE(),//multiply done,next clk add,ID_VLD <=0
                     .O_OUT_VLD (),
                     .O_OUT     (data_io_matrix[i][j])//output data(down shift)

@@ -55,7 +55,7 @@ initial begin
     I_M1      = 0;
     I_M2      = 0;
     I_VLD     = 0;
-    #45
+    #35
     I_M1_C    = 0;
     I_M2_C    = 0;
     #10;

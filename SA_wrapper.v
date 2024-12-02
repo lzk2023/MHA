@@ -31,7 +31,8 @@ module SA_wrapper#(
     input   [(S*X_R*16)-1:0]     I_X         ,//input x(from left)     matrix x:     x|<------------------>|
     input   [(S*64*16)-1:0]      I_W         ,//input weight(from ddr)               |
     output                       O_OUT_VLD   ,//                                   S |
-    output  [(X_R*64*16)-1:0]    O_OUT        //OUT.shape = (X_R,64)                 |
+    //output  [(X_R*64*16)-1:0]    O_OUT        //OUT.shape = (X_R,64)                 |
+    output  [64*16-1:0]         O_OUT
 );                                            //                                     x
 localparam X_SEL_W = $clog2(S+X_R-1+64);
 
@@ -39,19 +40,34 @@ wire                             pe_shift    ;
 wire        [(S*16)-1:0]         sa_x_in     ;
 wire        [(64*16)-1:0]        sa_out      ;
 
-wire [15:0] x_matrix [0:S-1] [0:S+X_R-2]     ;
+wire [15:0] x_matrix   [0:X_R-1] [0:S-1]    ;
+wire [15:0] x_t_matrix [0:S-1] [0:X_R-1]    ;
+wire [15:0] x_r_matrix [0:S-1] [0:X_R-1]    ;
+wire [15:0] x_in_matrix [0:S-1] [0:S+X_R-2] ;
 reg [X_SEL_W-1:0] x_sel   ;
 reg               end_flag;
+
+assign O_OUT = sa_out;
+generate
+    for(genvar i=0;i<X_R;i=i+1)begin
+        for(genvar j=0;j<S;j=j+1)begin
+            assign x_matrix[i][j] = I_X[(i*S+j)*16 +: 16];
+            assign x_t_matrix[j][i] = x_matrix[i][j];
+            assign x_r_matrix[j][i] = x_t_matrix[j][X_R-1-i];
+        end
+    end
+endgenerate
+
 
 genvar i;
 genvar j;
 generate
-    for(j=0;j<S;j=j+1)begin
-        for(i=0;i<S+X_R-1;i=i+1)begin
-            if(i>=S-1-j & i<S-1-j+X_R)begin
-                assign x_matrix[j][i] = I_X[(j*X_R+(i-(S-1-j)))*16 +: 16];
+    for(i=0;i<S;i=i+1)begin
+        for(j=0;j<S+X_R-1;j=j+1)begin
+            if(j>=S-1-i & j<S-1-i+X_R)begin
+                assign x_in_matrix[i][j] = x_r_matrix[i][j-(S-1-i)];
             end else begin
-                assign x_matrix[j][i] = 0;
+                assign x_in_matrix[i][j] = 0;
             end
         end
     end
@@ -60,7 +76,7 @@ endgenerate
 genvar k;
 generate
     for(k=0;k<S;k=k+1)begin
-        assign sa_x_in[k*16+:16] = (x_sel < S+X_R-1) ? x_matrix[k] [S+X_R-2-x_sel] : 16'b0;
+        assign sa_x_in[k*16+:16] = (x_sel < S+X_R-1) ? x_in_matrix[k] [S+X_R-2-x_sel] : 16'b0;
     end
 endgenerate
 always@(posedge I_CLK or negedge I_RST_N)begin

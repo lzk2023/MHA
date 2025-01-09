@@ -36,7 +36,7 @@ module Exp_x(
         .IN_DW(16)
     )u_mul_in_loge(
         .I_IN1     (I_X      ),
-        .I_IN2     (16'd11819),//1.442695040889*2^13
+        .I_IN2     (16'd11819),//1.442695040889*2^13//
         .O_MUL_OUT (mul_out  )
     );
     assign uivi = {mul_out[31],mul_out[28:13]};//[16:0]expand 1 bit

@@ -53,7 +53,7 @@ module Exp_x(
         .result(n_2_vi)
     );
     always@(*)begin
-        if(!I_X[15] & I_X[14:0] >= 15'd11357)begin//I_X >= ln4
+        if($signed(I_X) >= $signed(16'd11357))begin//I_X >= ln4
             O_EXP = 16'b0_11_11111_1111_1111;
         end else begin
             if(!uivi_msb)begin

@@ -29,8 +29,8 @@ module SA_wrapper#(
     input                        I_CLK       ,
     input                        I_RST_N     ,
     input                        I_START_FLAG,//                                               X_R    
-    input   [(S*X_R*D_W)-1:0]     I_X         ,//input x(from left)     matrix x:     x|<------------------>|
-    input   [(S*64*D_W)-1:0]      I_W         ,//input weight(from ddr)               |
+    input   [(S*X_R*D_W)-1:0]    I_X         ,//input x(from left)     matrix x:     x|<------------------>|
+    input   [(S*64*D_W)-1:0]     I_W         ,//input weight(from ddr)               |
     output                       O_OUT_VLD   ,//                                   S |
     //output  [(X_R*64*D_W)-1:0]    O_OUT        //OUT.shape = (X_R,64)                 |
     output  [64*D_W-1:0]         O_OUT

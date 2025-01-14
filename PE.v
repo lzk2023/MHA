@@ -24,18 +24,18 @@ module PE#(
 parameter D_W = 8
 )
 (
-input             I_CLK     ,
-input             I_RST_N   ,
-input             I_X_VLD   ,
+input                I_CLK     ,
+input                I_RST_N   ,
+input                I_X_VLD   ,
 input      [D_W-1:0] I_X       ,//input x(from left)
-input             I_W_VLD   ,
+input                I_W_VLD   ,
 input      [D_W-1:0] I_W       ,//input weight(from ddr)
-input             I_D_VLD   ,
+input                I_D_VLD   ,
 input      [D_W-1:0] I_D       ,//input data(from up)
-output reg        O_X_VLD   ,
+output reg           O_X_VLD   ,
 output reg [D_W-1:0] O_X       ,//output x(right shift)
-output            O_MUL_DONE,//multiply done,next clk add,ID_VLD <=0
-output reg        O_OUT_VLD ,
+output               O_MUL_DONE,//multiply done,next clk add,ID_VLD <=0
+output reg           O_OUT_VLD ,
 output reg [D_W-1:0] O_OUT     //output data(down shift)
 );
 

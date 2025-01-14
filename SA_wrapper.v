@@ -22,28 +22,29 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 module SA_wrapper#(
+    parameter D_W = 8,  //Data_Width
     parameter S   = 64,  //W_ROW,     W.shape = (S,64)
     parameter X_R = 64   //X_ROW,     X.shape = (X_R,S)
 ) (
     input                        I_CLK       ,
     input                        I_RST_N     ,
     input                        I_START_FLAG,//                                               X_R    
-    input   [(S*X_R*16)-1:0]     I_X         ,//input x(from left)     matrix x:     x|<------------------>|
-    input   [(S*64*16)-1:0]      I_W         ,//input weight(from ddr)               |
+    input   [(S*X_R*D_W)-1:0]     I_X         ,//input x(from left)     matrix x:     x|<------------------>|
+    input   [(S*64*D_W)-1:0]      I_W         ,//input weight(from ddr)               |
     output                       O_OUT_VLD   ,//                                   S |
-    //output  [(X_R*64*16)-1:0]    O_OUT        //OUT.shape = (X_R,64)                 |
-    output  [64*16-1:0]         O_OUT
+    //output  [(X_R*64*D_W)-1:0]    O_OUT        //OUT.shape = (X_R,64)                 |
+    output  [64*D_W-1:0]         O_OUT
 );                                            //                                     x
 localparam X_SEL_W = $clog2(S+X_R-1+64);
 
 wire                             pe_shift    ;
-wire        [(S*16)-1:0]         sa_x_in     ;
-wire        [(64*16)-1:0]        sa_out      ;
+wire        [(S*D_W)-1:0]         sa_x_in     ;
+wire        [(64*D_W)-1:0]        sa_out      ;
 
-wire [15:0] x_matrix   [0:X_R-1] [0:S-1]    ;
-wire [15:0] x_t_matrix [0:S-1] [0:X_R-1]    ;
-wire [15:0] x_r_matrix [0:S-1] [0:X_R-1]    ;
-wire [15:0] x_in_matrix [0:S-1] [0:S+X_R-2] ;
+wire [D_W-1:0] x_matrix   [0:X_R-1] [0:S-1]    ;
+wire [D_W-1:0] x_t_matrix [0:S-1] [0:X_R-1]    ;
+wire [D_W-1:0] x_r_matrix [0:S-1] [0:X_R-1]    ;
+wire [D_W-1:0] x_in_matrix [0:S-1] [0:S+X_R-2] ;
 reg [X_SEL_W-1:0] x_sel   ;
 reg               end_flag;
 
@@ -51,7 +52,7 @@ assign O_OUT = sa_out;
 generate
     for(genvar i=0;i<X_R;i=i+1)begin
         for(genvar j=0;j<S;j=j+1)begin
-            assign x_matrix[i][j] = I_X[(i*S+j)*16 +: 16];
+            assign x_matrix[i][j] = I_X[(i*S+j)*D_W +: D_W];
             assign x_t_matrix[j][i] = x_matrix[i][j];
             assign x_r_matrix[j][i] = x_t_matrix[j][X_R-1-i];
         end
@@ -76,7 +77,7 @@ endgenerate
 genvar k;
 generate
     for(k=0;k<S;k=k+1)begin
-        assign sa_x_in[k*16+:16] = (x_sel < S+X_R-1) ? x_in_matrix[k] [S+X_R-2-x_sel] : 16'b0;
+        assign sa_x_in[k*D_W+:D_W] = (x_sel < S+X_R-1) ? x_in_matrix[k] [S+X_R-2-x_sel] : {D_W{1'b0}};
     end
 endgenerate
 always@(posedge I_CLK or negedge I_RST_N)begin
@@ -100,6 +101,7 @@ always@(posedge I_CLK or negedge I_RST_N)begin
     end
 end
 SA #(
+    .D_W         (D_W         ),
     .S           (S           )
 ) u_SA (
     .I_CLK       (I_CLK       ),

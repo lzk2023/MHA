@@ -16,10 +16,10 @@ divider #(
 )dut_divider(
     .I_CLK      (I_CLK      ),
     .I_RST_N    (I_RST_N    ),
-    .I_DIV_START(I_DIV_START),//�?始标�?,计算时应保持
-    .I_DIVIDEND (I_DIVIDEND ),//被除�?,计算时应保持
+    .I_DIV_START(I_DIV_START),//开始标志,计算时应保持
+    .I_DIVIDEND (I_DIVIDEND ),//被除数,计算时应保持
     .I_DIVISOR  (I_DIVISOR  ),//除数,计算时应保持
-    .O_QUOTIENT (O_QUOTIENT ),//�?
+    .O_QUOTIENT (O_QUOTIENT ),//商
     .O_OUT_VLD  (O_OUT_VLD  )  
 );
 assign q_compare = $signed(I_DIVIDEND)/$signed(I_DIVISOR);

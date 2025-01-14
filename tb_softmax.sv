@@ -13,15 +13,25 @@ module tb_softmax();
     
     task float_outdata();
         real sum;
-        out_data_real [0] = $signed(out_data[0 +: 16])/8192;
-        out_data_real [1] = $signed(out_data[16 +: 16])/8192;
-        out_data_real [2] = $signed(out_data[32 +: 16])/8192;
-        out_data_real [3] = $signed(out_data[48 +: 16])/8192;
-        sum = $exp($signed(data[0 +: 16]) / 8192) + $exp($signed(data[16 +: 16]) / 8192) + $exp($signed(data[32 +: 16]) / 8192) + $exp($signed(data[48 +: 16]) / 8192);
-        out_data_compare [0] = $exp($signed(data[0 +: 16]) / 8192) / sum;
-        out_data_compare [1] = $exp($signed(data[16 +: 16]) / 8192) / sum;
-        out_data_compare [2] = $exp($signed(data[32 +: 16]) / 8192) / sum;
-        out_data_compare [3] = $exp($signed(data[48 +: 16]) / 8192) / sum;
+        out_data_real [0] = $signed(out_data[0 +: 16]) ;
+        out_data_real [1] = $signed(out_data[16 +: 16]);
+        out_data_real [2] = $signed(out_data[32 +: 16]);
+        out_data_real [3] = $signed(out_data[48 +: 16]);
+        out_data_real [0] = out_data_real [0]/8192;
+        out_data_real [1] = out_data_real [1]/8192;
+        out_data_real [2] = out_data_real [2]/8192;
+        out_data_real [3] = out_data_real [3]/8192;
+        
+        out_data_compare [0] = $signed(data[0 +: 16]) ;
+        out_data_compare [1] = $signed(data[16 +: 16]);
+        out_data_compare [2] = $signed(data[32 +: 16]);
+        out_data_compare [3] = $signed(data[48 +: 16]);
+        sum = $exp(out_data_compare [0] / 8192) + $exp(out_data_compare [1] / 8192) + $exp(out_data_compare [2] / 8192) + $exp(out_data_compare [3] / 8192);
+        out_data_compare [0] = $exp(out_data_compare [0] / 8192) / sum;
+        out_data_compare [1] = $exp(out_data_compare [1] / 8192) / sum;
+        out_data_compare [2] = $exp(out_data_compare [2] / 8192) / sum;
+        out_data_compare [3] = $exp(out_data_compare [3] / 8192) / sum;
+        
     endtask
     softmax#(  
     .D_W(D_W),

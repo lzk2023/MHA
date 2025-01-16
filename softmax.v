@@ -1,14 +1,14 @@
 `timescale 1ns / 1ps
 module softmax#(  
     parameter D_W = 16,
-    parameter DIM = 16 //dimention
+    parameter NUM = 16 //word number
 )(
     input                    I_CLK  ,
     input                    I_RST_N,
     input                    I_START,//keep when calculate
-    input      [D_W*DIM-1:0] I_DATA ,
+    input      [D_W*NUM-1:0] I_DATA ,
     output reg               O_VLD  ,
-    output reg [D_W*DIM-1:0] O_DATA 
+    output reg [D_W*NUM-1:0] O_DATA 
     );
     localparam S_IDLE = 4'b0001;
     localparam S_ADD  = 4'b0010;
@@ -58,7 +58,7 @@ module softmax#(
                 end
                 S_ADD  :begin
                     if(I_START)begin
-                        if(add_div_cnt < DIM)begin
+                        if(add_div_cnt < NUM)begin
                             add_div_cnt  <= add_div_cnt + 1;
                             data_sum <= $signed(data_sum) + $signed(data_e_x);
                         end else begin
@@ -73,7 +73,7 @@ module softmax#(
                 end
                 S_DIV  :begin
                     if(I_START)begin
-                        if(add_div_cnt < DIM)begin
+                        if(add_div_cnt < NUM)begin
                             if(div_vld)begin
                                 add_div_cnt <= add_div_cnt + 1;
                                 O_DATA[D_W*add_div_cnt +: D_W] <= quotient;

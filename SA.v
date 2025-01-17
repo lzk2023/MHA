@@ -10,7 +10,7 @@
 // Target Devices: 
 // Tool Versions: 
 // Description: Systolic Array,5clk update PE.
-//              input shift(left to right),output shift(up to down),weight maintain.
+//              input shift(left to right),weight shift(up to down),output maintain.
 //              data 16 bits,for 1 signal bit,2 int bits and 13 fraction bits
 //              data format:16'b0_00_00000_0000_0000
 // Dependencies: 
@@ -23,48 +23,37 @@
 
 module SA #(
     parameter D_W = 16,
-    parameter S   = 64
+    parameter S   = 16,
+    parameter C   = 16
 )
 (
-input                      I_CLK       ,
-input                      I_RST_N     ,
-input                      I_START_FLAG,
-input                      I_END_FLAG  ,
-input     [(S*D_W)-1:0]    I_X         ,//input x(from left)
-input     [(S*64*D_W)-1:0] I_W         ,//input weight(from ddr)
-output                     O_SHIFT     ,//PE shift,O_SHIFT <= 1
-output    [(64*D_W)-1:0]   O_OUT        //output data(down shift),
+    input                      I_CLK       ,
+    input                      I_RST_N     ,
+    input                      I_START_FLAG,
+    input                      I_END_FLAG  ,
+    input     [(S*D_W)-1:0]    I_X         ,//input x(from left)
+    input     [(C*D_W)-1:0]    I_W         ,//input weight(from up)
+    output                     O_SHIFT     ,//PE shift,O_SHIFT <= 1
+    output    [(S*C*D_W)-1:0]  O_OUT        //output data,
 );
 localparam S_IDLE = 1'b0;
 localparam S_CAL  = 1'b1;
-reg                             state     ;
-reg                             x_vld     ;
-reg                             w_vld     ;
-reg                             d_vld     ;
+reg                         state     ;
+reg                         x_vld     ;
 
-wire [D_W-1:0] i_w_matrix      [0:S-1] [0:63];
-wire [D_W-1:0] data_io_matrix  [0:S-1] [0:63];
-wire [D_W-1:0] x_io_matrix     [0:S-1] [0:63];
-
-//wire       [S*64*D_W-1:0]        data_i_o  ;
-//wire       [S*64*D_W-1:0]        x_i_o     ;
-wire                            pe00_vld  ;
+wire [D_W-1:0] out_matrix  [0:S-1] [0:C-1];
+wire [D_W-1:0] w_io_matrix [0:S-1] [0:C-1];
+wire [D_W-1:0] x_io_matrix [0:S-1] [0:C-1];
+wire                        pe00_vld  ;
 
 generate 
     for(genvar i=0;i<S;i=i+1)begin
-        for(genvar j=0;j<64;j=j+1)begin
-            assign i_w_matrix[i][j] = I_W[(i*64+j)*D_W +: D_W];
-            //assign data_io_matrix[i][j] = data_i_o[(i*64+j)*D_W +: D_W];
-            //assign x_io_matrix [i][j] = x_i_o[(i*64+j)*D_W +: D_W];
+        for(genvar j=0;j<C;j=j+1)begin
+            assign O_OUT[(i*C+j)*D_W +: D_W] = out_matrix[i][j];
         end
     end
 endgenerate
 
-generate 
-    for(genvar j=0;j<64;j=j+1)begin
-        assign O_OUT[j*D_W +: D_W] = data_io_matrix[S-1][j];//data_i_o[S*64*D_W-1:(S-1)*64*D_W];
-    end
-endgenerate
 assign O_SHIFT = pe00_vld;
 
 always@(posedge I_CLK or negedge I_RST_N)begin
@@ -94,42 +83,32 @@ always@(*)begin
     if(state == S_CAL)begin
         if(!pe00_vld)begin
             x_vld = 1;
-            w_vld = 1;
-            d_vld = 1;
         end else begin
             x_vld = 0;
-            w_vld = 0;
-            d_vld = 0;
         end
     end else begin
         x_vld = 0;
-        w_vld = 0;
-        d_vld = 0;
     end
 end
-                                                        //   SA:                   64(j)
+                                                        //   SA:                   C(j)
 genvar i;                                               //       x|<--------------------------------->|
 genvar j;                                               //       |
-generate                                                //  S(i) |               S x 64
+generate                                                //  S(i) |               S x C
     for(i=0;i<S;i=i+1)begin                             //       |
-        for(j=0;j<64;j=j+1)begin                        //       x
+        for(j=0;j<C;j=j+1)begin                        //       x
             if(i == 0 & j == 0)begin
                 PE #(
                     .D_W(D_W)
                 )u_PE(
                     .I_CLK     (I_CLK  ),
                     .I_RST_N   (I_RST_N),
-                    .I_X_VLD   (x_vld),
+                    .I_VLD     (x_vld),
                     .I_X       (I_X[0 +: D_W]),//input x(from left)
-                    .I_W_VLD   (w_vld),
-                    .I_W       (i_w_matrix[0][0]),//input weight(from ddr)
-                    .I_D_VLD   (d_vld),
-                    .I_D       ({D_W{1'b0}}),//input data(from up)
-                    .O_X_VLD   (),
+                    .I_W       (I_W[0 +: D_W]),//input weight(from up)
+                    .O_VLD     (pe00_vld),
                     .O_X       (x_io_matrix[0][0]),//output x(right shift)
-                    .O_MUL_DONE(),//multiply done,next clk add,ID_VLD <=0
-                    .O_OUT_VLD (pe00_vld),
-                    .O_OUT     (data_io_matrix[0][0])//output data(down shift)
+                    .O_W       (w_io_matrix[0][0]),
+                    .O_D       (out_matrix[0][0])
                 );
             end
             else if(i != 0 & j == 0)begin
@@ -138,17 +117,13 @@ generate                                                //  S(i) |              
                 )u_PE(
                     .I_CLK     (I_CLK  ),
                     .I_RST_N   (I_RST_N),
-                    .I_X_VLD   (x_vld),
+                    .I_VLD     (x_vld),
                     .I_X       (I_X[i*D_W +: D_W]),//input x(from left)
-                    .I_W_VLD   (w_vld),
-                    .I_W       (i_w_matrix[i][0]),//input weight(from ddr)
-                    .I_D_VLD   (d_vld),
-                    .I_D       (data_io_matrix[i-1][0]),//input data(from up)
-                    .O_X_VLD   (),
+                    .I_W       (w_io_matrix[i-1][0]),//input weight(from up)
+                    .O_VLD     (),
                     .O_X       (x_io_matrix[i][0]),//output x(right shift)
-                    .O_MUL_DONE(),//multiply done,next clk add,ID_VLD <=0
-                    .O_OUT_VLD (),
-                    .O_OUT     (data_io_matrix[i][0])//output data(down shift)
+                    .O_W       (w_io_matrix[i][0]),
+                    .O_D       (out_matrix[i][0])
                 );
             end else if(i == 0 & j != 0)begin
                 PE #(
@@ -156,17 +131,13 @@ generate                                                //  S(i) |              
                 ) u_PE(
                     .I_CLK     (I_CLK  ),
                     .I_RST_N   (I_RST_N),
-                    .I_X_VLD   (x_vld),
+                    .I_VLD     (x_vld),
                     .I_X       (x_io_matrix[0][j-1]),//input x(from left)
-                    .I_W_VLD   (w_vld),
-                    .I_W       (i_w_matrix[0][j]),//input weight(from ddr)
-                    .I_D_VLD   (d_vld),
-                    .I_D       ({D_W{1'b0}}),//input data(from up)
-                    .O_X_VLD   (),
+                    .I_W       (I_W[j*D_W +: D_W]),//input weight(from up)
+                    .O_VLD     (),
                     .O_X       (x_io_matrix[0][j]),//output x(right shift)
-                    .O_MUL_DONE(),//multiply done,next clk add,ID_VLD <=0
-                    .O_OUT_VLD (),
-                    .O_OUT     (data_io_matrix[0][j])//output data(down shift)
+                    .O_W       (w_io_matrix[0][j]),
+                    .O_D       (out_matrix[0][j])
                 );
             end else begin
                 PE #(
@@ -174,17 +145,13 @@ generate                                                //  S(i) |              
                 )u_PE(
                     .I_CLK     (I_CLK  ),
                     .I_RST_N   (I_RST_N),
-                    .I_X_VLD   (x_vld),
+                    .I_VLD     (x_vld),
                     .I_X       (x_io_matrix[i][j-1]),//input x(from left)
-                    .I_W_VLD   (w_vld),
-                    .I_W       (i_w_matrix[i][j]),//input weight(from ddr)
-                    .I_D_VLD   (d_vld),
-                    .I_D       (data_io_matrix[i-1][j]),//input data(from up)
-                    .O_X_VLD   (),
+                    .I_W       (w_io_matrix[i-1][j]),//input weight(from up)
+                    .O_VLD     (),
                     .O_X       (x_io_matrix[i][j]),//output x(right shift)
-                    .O_MUL_DONE(),//multiply done,next clk add,ID_VLD <=0
-                    .O_OUT_VLD (),
-                    .O_OUT     (data_io_matrix[i][j])//output data(down shift)
+                    .O_W       (w_io_matrix[i][j]),
+                    .O_D       (out_matrix[i][j])
                 );
             end
         end

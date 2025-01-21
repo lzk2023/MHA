@@ -27,15 +27,14 @@ module SA #(
     parameter SA_C = 16
 )
 (
-    input                      I_CLK       ,
-    input                      I_ASYN_RSTN ,
-    input                      I_SYNC_RSTN ,
-    input                      I_START_FLAG,
-    input                      I_END_FLAG  ,
-    input     [(SA_R*D_W)-1:0]    I_X         ,//input x(from left)
-    input     [(SA_C*D_W)-1:0]    I_W         ,//input weight(from up)
-    output                     O_SHIFT     ,//PE shift,O_SHIFT <= 1
-    output    [(SA_R*SA_C*D_W)-1:0]  O_OUT        //output data,
+    input                        I_CLK       ,
+    input                        I_ASYN_RSTN ,
+    input                        I_SYNC_RSTN ,
+    input                        I_START_FLAG,
+    input  [(SA_R*D_W)-1:0]      I_X         ,//input x(from left)
+    input  [(SA_C*D_W)-1:0]      I_W         ,//input weight(from up)
+    output                       O_SHIFT     ,//PE shift,O_SHIFT <= 1
+    output [(SA_R*SA_C*D_W)-1:0] O_OUT        //output data,
 );
 localparam S_IDLE = 1'b0;
 localparam S_CAL  = 1'b1;
@@ -64,11 +63,7 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                 end
             end
             S_CAL :begin
-                if(I_END_FLAG)begin
-                    state <= S_IDLE;
-                end else begin
-                    state <= state;
-                end  
+                state <= state; 
             end
         endcase
     end
@@ -76,11 +71,7 @@ end
 
 always@(*)begin
     if(state == S_CAL)begin
-        if(!pe00_vld)begin
-            x_vld = 1;
-        end else begin
-            x_vld = 0;
-        end
+        x_vld = 1;
     end else begin
         x_vld = 0;
     end

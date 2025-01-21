@@ -26,25 +26,74 @@ module SA_wrapper#(
     parameter SA_R = 16,  //SA_ROW,     SA.shape = (SA_R,SA_C)
     parameter SA_C = 16   //SA_COLUMN
 ) (
-    input                        I_CLK       ,
-    input                        I_ASYN_RSTN ,
-    input                        I_SYNC_RSTN ,
-    input                        I_START_FLAG,
-    input                        I_END_FLAG  ,//                                              SA_C    
-    input   [(SA_R*D_W)-1:0]        I_X         ,//input x(from left)     matrix x:     x|<-------------->|
-    input   [(SA_C*D_W)-1:0]        I_W         ,//input weight(from up)                |
-    output                       O_OUT_VLD   ,//                                   SA_R |
-    //output  [(X_R*SA_C*D_W)-1:0]    O_OUT        //OUT.shape = (X_R,SA_C)             |
-    output                       O_PE_SHIFT  ,//                                        x
-    output  [SA_R*SA_C*D_W-1:0]        O_OUT        
+    input                        I_CLK          ,
+    input                        I_ASYN_RSTN    ,
+    input                        I_SYNC_RSTN    ,
+    input                        I_START_FLAG   ,
+    input                        I_MATSHIFT_OVER,//                                               SA_C    
+    input   [(SA_R*D_W)-1:0]     I_X            ,//input x(from left)        matrix x:     x|<-------------->|
+    input   [(SA_C*D_W)-1:0]     I_W            ,//input weight(from up)                   |
+    output  reg                  O_OUT_VLD      ,//                                   SA_R |
+    //output  [(X_R*SA_C*D_W)-1:0]    O_OUT        //OUT.shape = (X_R,SA_C)                |
+    output                       O_PE_SHIFT     ,//                                        x
+    output  [SA_R*SA_C*D_W-1:0]  O_OUT          
 );
-
+localparam S_IDLE = 3'b001;
+localparam S_CALC = 3'b010;
+localparam S_END  = 3'b100;
 wire        [(SA_R*D_W)-1:0] input_x ;
 wire        [(SA_C*D_W)-1:0] input_w ;
 
+reg         [9:0]     count                      ;//15+16-1=30 clk,out_vld == 1
 reg         [D_W-1:0] in_x_ff[0:SA_R-1][0:SA_R-1];
 reg         [D_W-1:0] in_w_ff[0:SA_C-1][0:SA_C-1];
+reg         [2:0]     state                      ;
 
+always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
+    if(!I_ASYN_RSTN | !I_SYNC_RSTN)begin
+        count <= 0;
+    end else if(I_MATSHIFT_OVER)begin
+        if(count < 10'd29)begin
+            count <= count + 1;
+        end else begin
+            count <= count;
+        end
+    end else begin
+        count <= 0;
+    end
+end
+
+always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
+    if(!I_ASYN_RSTN | !I_SYNC_RSTN)begin
+        state     <= S_IDLE;
+        O_OUT_VLD <= 0;
+    end else begin
+        case(state)
+            S_IDLE:begin
+                if(I_START_FLAG)begin
+                    state <= S_CALC;
+                    O_OUT_VLD <= 0;
+                end else begin
+                    state <= state;
+                    O_OUT_VLD <= O_OUT_VLD;
+                end
+            end
+            S_CALC:begin
+                if(count == 10'd29)begin
+                    state <= S_END;
+                    O_OUT_VLD <= 1;
+                end else begin
+                    state <= state;
+                    O_OUT_VLD <= 0;
+                end
+            end
+            S_END :begin
+                state <= S_END;
+                O_OUT_VLD <= 1;
+            end
+        endcase
+    end
+end
 
 generate
     for(genvar i=0;i<SA_R;i=i+1)begin
@@ -119,7 +168,6 @@ SA #(
     .I_ASYN_RSTN (I_ASYN_RSTN ),
     .I_SYNC_RSTN (I_SYNC_RSTN ),
     .I_START_FLAG(I_START_FLAG),
-    .I_END_FLAG  (I_END_FLAG  ),
     .I_X         (input_x     ),//input x(from left)
     .I_W         (input_w     ),//input weight(from up)
     .O_SHIFT     (O_PE_SHIFT  ),//PE shift,O_SHIFT <= 1

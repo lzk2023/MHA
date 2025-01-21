@@ -11,16 +11,16 @@ bit                     I_CLK        ;
 bit                     I_ASYN_RSTN  ;
 bit                     I_SYNC_RSTN  ;
 bit                     I_START_FLAG ;
-bit                     I_END_FLAG   ;
 bit   [(SA_R*D_W)-1:0]  I_X          ;
 bit   [(SA_C*D_W)-1:0]  I_W          ;
 
 bit   [SA_R*SA_C*D_W-1:0] I_X_MATRIX   ;
 bit   [SA_R*SA_C*D_W-1:0] I_W_MATRIX   ;
   
-logic                   O_MATRIX_OVER    ;
-logic  [(SA_R*SA_C*D_W)-1:0]  O_OUT        ;
-logic                   O_PE_SHIFT   ;
+logic                        O_MATRIX_OVER;
+logic  [(SA_R*SA_C*D_W)-1:0] O_OUT        ;
+logic                        O_PE_SHIFT   ;
+logic                        O_OUT_VLD    ;
 
 bit [D_W-1:0] X_MATRIX [0:SA_R-1][0:SA_C-1];
 bit [D_W-1:0] W_MATRIX [0:SA_R-1][0:SA_C-1];
@@ -50,16 +50,16 @@ SA_wrapper#(
     .SA_R       (SA_R         ),  //SA_ROW,        SA.shape = (SA_R,SA_C)
     .SA_C       (SA_C         )   //SA_COLUMN,     
 ) u_dut_SA_top(
-    .I_CLK       (I_CLK        ),
-    .I_ASYN_RSTN (I_ASYN_RSTN  ),
-    .I_SYNC_RSTN (I_SYNC_RSTN  ),
-    .I_START_FLAG(I_START_FLAG ),//
-    .I_END_FLAG  (),                                                
-    .I_X         (I_X          ),//input x(from left)     
-    .I_W         (I_W          ),//input weight(from ddr)             
-    .O_OUT_VLD   (),// 
-    .O_PE_SHIFT  (O_PE_SHIFT   ),                                  
-    .O_OUT       (O_OUT        ) //OUT.shape = (X_R,64)               
+    .I_CLK          (I_CLK        ),
+    .I_ASYN_RSTN    (I_ASYN_RSTN  ),
+    .I_SYNC_RSTN    (I_SYNC_RSTN  ),
+    .I_START_FLAG   (I_START_FLAG ),//
+    .I_MATSHIFT_OVER(O_MATRIX_OVER),
+    .I_X            (I_X          ),//input x(from left)     
+    .I_W            (I_W          ),//input weight(from ddr)             
+    .O_OUT_VLD      (O_OUT_VLD),// 
+    .O_PE_SHIFT     (O_PE_SHIFT   ),                                  
+    .O_OUT          (O_OUT        ) //OUT.shape = (X_R,64)               
 );           
 
 always #5 I_CLK = ~I_CLK;
@@ -130,7 +130,18 @@ initial begin
     //};
     #10
     I_START_FLAG = 0;
-    #10000
+    #1000
+
+
+
+    I_SYNC_RSTN  = 0;
+    #10
+    I_SYNC_RSTN  = 1;
+    #100
+    I_START_FLAG = 1;
+    #10
+    I_START_FLAG = 0;
+    #1000
     $finish;
 end
 endmodule

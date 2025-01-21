@@ -4,7 +4,8 @@ module tb_multiplier(
 
 );
 bit          I_CLK         ;
-bit          I_RST_N       ;
+bit          I_ASYN_RSTN   ;
+bit          I_SYNC_RSTN   ;
 bit          I_VLD         ;
 bit  [15:0]  I_M1          ;
 bit  [15:0]  I_M2          ;
@@ -16,13 +17,14 @@ logic [31:0]   PROD_COMP_32  ;
 logic [15:0]   PROD_COMP_16  ;
 bit          correct_flag  ;
 multiplier u_dut_mul_16(
-    .I_CLK     (I_CLK     ),
-    .I_RST_N   (I_RST_N   ),
-    .I_VLD     (I_VLD     ),//input valid
-    .I_M1      (I_M1      ),//multiplicand(被乘数)
-    .I_M2      (I_M2      ),//multiplier  (乘数)
-    .O_VLD     (O_VLD     ),//output valid
-    .O_PRODUCT (O_PRODUCT ) //product     (积)
+    .I_CLK      (I_CLK     ),
+    .I_ASYN_RSTN(I_ASYN_RSTN),
+    .I_SYNC_RSTN(I_SYNC_RSTN),
+    .I_VLD      (I_VLD     ),//input valid
+    .I_M1       (I_M1      ),//multiplicand(被乘数)
+    .I_M2       (I_M2      ),//multiplier  (乘数)
+    .O_VLD      (O_VLD     ),//output valid
+    .O_PRODUCT  (O_PRODUCT ) //product     (积)
 );
 
 always #5 I_CLK = ~I_CLK;
@@ -32,15 +34,16 @@ always #5 I_CLK = ~I_CLK;
 //end
 
 initial begin
-    I_CLK     = 0;
-    I_RST_N   = 0;
-    I_VLD     = 0;
-    I_M1      = 0;
-    I_M2      = 0;
-    I_M1_C    = 0;
-    I_M2_C    = 0;
+    I_CLK       = 0;
+    I_ASYN_RSTN = 0;
+    I_SYNC_RSTN = 1;
+    I_VLD       = 0;
+    I_M1        = 0;
+    I_M2        = 0;
+    I_M1_C      = 0;
+    I_M2_C      = 0;
     #50
-    I_RST_N   = 1;
+    I_ASYN_RSTN = 1;
     #50
     while(1)begin
         #1

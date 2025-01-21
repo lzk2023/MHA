@@ -1,13 +1,13 @@
 `timescale 1ns/1ps
 module tb_softmax();
     localparam D_W = 16;
-    localparam DIM = 4;
+    localparam NUM = 4;
     bit                 clk  ;
     bit                 rst_n;
     bit                 start;
-    bit   [D_W*DIM-1:0] data ;
+    bit   [D_W*NUM-1:0] data ;
     logic               out_vld ;
-    logic [D_W*DIM-1:0] out_data;
+    logic [D_W*NUM-1:0] out_data;
     real                out_data_real[4];
     real                out_data_compare[4];
     
@@ -35,7 +35,7 @@ module tb_softmax();
     endtask
     softmax#(  
     .D_W(D_W),
-    .DIM(DIM) //dimention
+    .NUM(NUM) //dimention
     )u_dut_softmax(
     .I_CLK  (clk  ),
     .I_RST_N(rst_n),
@@ -57,7 +57,7 @@ module tb_softmax();
         #1 
         float_outdata();
         start = 0;
-        #50000
+        #1000
         $finish;
     end
 endmodule

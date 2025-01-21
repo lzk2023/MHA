@@ -25,7 +25,8 @@ module PE#(
 )
 (
     input                I_CLK      ,
-    input                I_RST_N    ,
+    input                I_ASYN_RSTN,
+    input                I_SYNC_RSTN,
     input                I_VLD      ,
     input      [D_W-1:0] I_X        ,//input x(from left)
     input      [D_W-1:0] I_W        ,//input weight(from up)
@@ -41,8 +42,8 @@ wire [D_W-1:0] o_mul_out;
 
 assign i_mul_vld  = I_VLD & (!o_mul_vld) & (!O_VLD);
 
-always@(posedge I_CLK or negedge I_RST_N)begin
-    if (!I_RST_N) begin
+always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
+    if (!I_ASYN_RSTN | !I_SYNC_RSTN) begin
         O_X     <= 'b0;
         O_W     <= 'b0;
         O_D     <= 'b0;
@@ -63,12 +64,13 @@ end
 multiplier #(
     .D_W(D_W)
 )u_mul_16(
-    .I_CLK     (I_CLK    ),
-    .I_RST_N   (I_RST_N  ),
-    .I_VLD     (i_mul_vld),//input valid
-    .I_M1      (I_X      ),//multiplicand(被乘数)
-    .I_M2      (I_W      ),//multiplier  (乘数)
-    .O_VLD     (o_mul_vld),//output valid
-    .O_PRODUCT (o_mul_out) //product     (积)
+    .I_CLK      (I_CLK      ),
+    .I_ASYN_RSTN(I_ASYN_RSTN),
+    .I_SYNC_RSTN(I_SYNC_RSTN),
+    .I_VLD      (i_mul_vld  ),//input valid
+    .I_M1       (I_X        ),//multiplicand(被乘数)
+    .I_M2       (I_W        ),//multiplier  (乘数)
+    .O_VLD      (o_mul_vld  ),//output valid
+    .O_PRODUCT  (o_mul_out  ) //product     (积)
 );
 endmodule

@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 module softmax#(  
     parameter D_W = 16,
-    parameter NUM = 16 //word number
+    parameter NUM = 64 //word number
 )(
     input                    I_CLK  ,
     input                    I_RST_N,
@@ -18,13 +18,14 @@ module softmax#(
     wire             div_start = (state==S_DIV) ? 1'b1 : 1'b0;
     wire [D_W-1:0]   quotient;
     wire             div_vld ;
+    wire [D_W-1:0]   in_ex_sel = (add_div_cnt == NUM) ? 0 : I_DATA[D_W*add_div_cnt +: D_W];
     //reg  [D_W-1+2:0] data_sum;//data_max extend
-    reg  [D_W-1:0] data_sum;
+    reg  [D_W-1:0]   data_sum;
     reg  [3:0]       state;
-    reg  [5:0]       add_div_cnt;
+    reg  [15:0]      add_div_cnt;
 
     Exp_x u_exp_x_16bit(         //data format:16bit
-    .I_X  (I_DATA[D_W*add_div_cnt +: D_W]) ,
+    .I_X  (in_ex_sel) ,
     .O_EXP(data_e_x)
     );
     divider#(.D_W(D_W))u_divider(

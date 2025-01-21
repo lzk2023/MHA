@@ -22,13 +22,14 @@
 module multiplier#(
     parameter D_W = 16
 )(
-    input                 I_CLK     ,
-    input                 I_RST_N   ,
-    input                 I_VLD     ,//input valid
-    input      [D_W-1:0]  I_M1      ,//multiplicand(被乘数)
-    input      [D_W-1:0]  I_M2      ,//multiplier  (乘数)
-    output reg            O_VLD     ,//output valid
-    output     [D_W-1:0]  O_PRODUCT  //product     (积)
+    input                 I_CLK      ,
+    input                 I_ASYN_RSTN,
+    input                 I_SYNC_RSTN,
+    input                 I_VLD      ,//input valid
+    input      [D_W-1:0]  I_M1       ,//multiplicand(被乘数)
+    input      [D_W-1:0]  I_M2       ,//multiplier  (乘数)
+    output reg            O_VLD      ,//output valid
+    output     [D_W-1:0]  O_PRODUCT   //product     (积)
 );
 localparam S_IDLE = 3'b001;
 localparam S_CAL  = 3'b010;
@@ -52,8 +53,8 @@ generate
 endgenerate
 
 assign prod_32 = product_reg - (m2_msb ? m1_reg : 0);//select output 选择输出
-always@(posedge I_CLK or negedge I_RST_N)begin
-    if(!I_RST_N)begin
+always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
+    if(!I_ASYN_RSTN | !I_SYNC_RSTN)begin
         state      <= S_IDLE;
         m1_reg     <= 'b0;
         m2_reg     <= 'b0;
@@ -107,8 +108,8 @@ always@(posedge I_CLK or negedge I_RST_N)begin
     end
 end
 
-always@(posedge I_CLK or negedge I_RST_N)begin
-    if(!I_RST_N)begin
+always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
+    if(!I_ASYN_RSTN | !I_SYNC_RSTN)begin
         product_reg <= 'b0;
     end else if(state == S_CAL)begin
         product_reg <= product_reg + prod_shift;  //add shift 累加移位结果   

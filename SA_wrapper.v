@@ -22,39 +22,40 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 module SA_wrapper#(
-    parameter D_W = 16,  //Data_Width
-    parameter S   = 16,  //SA_ROW,     SA.shape = (S,C)
-    parameter C   = 16   //SA_COLUMN
+    parameter D_W  = 16,  //Data_Width
+    parameter SA_R = 16,  //SA_ROW,     SA.shape = (SA_R,SA_C)
+    parameter SA_C = 16   //SA_COLUMN
 ) (
     input                        I_CLK       ,
-    input                        I_RST_N     ,
+    input                        I_ASYN_RSTN ,
+    input                        I_SYNC_RSTN ,
     input                        I_START_FLAG,
-    input                        I_END_FLAG  ,//                                              C    
-    input   [(S*D_W)-1:0]        I_X         ,//input x(from left)     matrix x:     x|<-------------->|
-    input   [(C*D_W)-1:0]        I_W         ,//input weight(from up)                |
-    output                       O_OUT_VLD   ,//                                   S |
-    //output  [(X_R*C*D_W)-1:0]    O_OUT        //OUT.shape = (X_R,C)                |
-    output                       O_PE_SHIFT  ,//                                     x
-    output  [S*C*D_W-1:0]        O_OUT        
+    input                        I_END_FLAG  ,//                                              SA_C    
+    input   [(SA_R*D_W)-1:0]        I_X         ,//input x(from left)     matrix x:     x|<-------------->|
+    input   [(SA_C*D_W)-1:0]        I_W         ,//input weight(from up)                |
+    output                       O_OUT_VLD   ,//                                   SA_R |
+    //output  [(X_R*SA_C*D_W)-1:0]    O_OUT        //OUT.shape = (X_R,SA_C)             |
+    output                       O_PE_SHIFT  ,//                                        x
+    output  [SA_R*SA_C*D_W-1:0]        O_OUT        
 );
 
-wire        [(S*D_W)-1:0] input_x ;
-wire        [(C*D_W)-1:0] input_w ;
+wire        [(SA_R*D_W)-1:0] input_x ;
+wire        [(SA_C*D_W)-1:0] input_w ;
 
-reg         [D_W-1:0] in_x_ff[0:S-1][0:S-1];
-reg         [D_W-1:0] in_w_ff[0:C-1][0:C-1];
+reg         [D_W-1:0] in_x_ff[0:SA_R-1][0:SA_R-1];
+reg         [D_W-1:0] in_w_ff[0:SA_C-1][0:SA_C-1];
 
 
 generate
-    for(genvar i=0;i<S;i=i+1)begin
+    for(genvar i=0;i<SA_R;i=i+1)begin
         if(i==0)
             assign input_x[0*D_W +: D_W] = I_X[0*D_W +: D_W];
         else
             assign input_x[i*D_W +: D_W] = in_x_ff[i][0];
         for(genvar j=0;j<i;j=j+1)begin
             if(j == i-1)begin
-                always@(posedge I_CLK or negedge I_RST_N)begin
-                    if(!I_RST_N)begin
+                always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
+                    if(!I_ASYN_RSTN | !I_SYNC_RSTN)begin
                         in_x_ff[i][j] <= 0;
                     end else if(O_PE_SHIFT)begin
                         in_x_ff[i][j] <= I_X[i*D_W +: D_W];
@@ -63,8 +64,8 @@ generate
                     end
                 end
             end else begin
-                always@(posedge I_CLK or negedge I_RST_N)begin
-                    if(!I_RST_N)begin
+                always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
+                    if(!I_ASYN_RSTN | !I_SYNC_RSTN)begin
                         in_x_ff[i][j] <= 0;
                     end else if(O_PE_SHIFT)begin
                         in_x_ff[i][j] <= in_x_ff[i][j+1];
@@ -78,15 +79,15 @@ generate
 endgenerate
 
 generate
-    for(genvar i=0;i<C;i=i+1)begin
+    for(genvar i=0;i<SA_C;i=i+1)begin
         if(i==0)
             assign input_w[0*D_W +: D_W] = I_W[0*D_W +: D_W];
         else
             assign input_w[i*D_W +: D_W] = in_w_ff[i][0];
         for(genvar j=0;j<i;j=j+1)begin
             if(j == i-1)begin
-                always@(posedge I_CLK or negedge I_RST_N)begin
-                    if(!I_RST_N)begin
+                always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
+                    if(!I_ASYN_RSTN | !I_SYNC_RSTN)begin
                         in_w_ff[i][j] <= 0;
                     end else if(O_PE_SHIFT)begin
                         in_w_ff[i][j] <= I_W[i*D_W +: D_W];
@@ -95,8 +96,8 @@ generate
                     end
                 end
             end else begin
-                always@(posedge I_CLK or negedge I_RST_N)begin
-                    if(!I_RST_N)begin
+                always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
+                    if(!I_ASYN_RSTN | !I_SYNC_RSTN)begin
                         in_w_ff[i][j] <= 0;
                     end else if(O_PE_SHIFT)begin
                         in_w_ff[i][j] <= in_w_ff[i][j+1];
@@ -111,11 +112,12 @@ endgenerate
 
 SA #(
     .D_W         (D_W         ),
-    .S           (S           ),
-    .C           (C           )
+    .SA_R        (SA_R        ),
+    .SA_C        (SA_C        )
 ) u_SA (
     .I_CLK       (I_CLK       ),
-    .I_RST_N     (I_RST_N     ),
+    .I_ASYN_RSTN (I_ASYN_RSTN ),
+    .I_SYNC_RSTN (I_SYNC_RSTN ),
     .I_START_FLAG(I_START_FLAG),
     .I_END_FLAG  (I_END_FLAG  ),
     .I_X         (input_x     ),//input x(from left)

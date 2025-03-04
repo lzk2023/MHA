@@ -1,6 +1,7 @@
 `timescale 1ns/1ps
 module tb_div_fast();
 localparam D_W = 16;
+localparam FRAC_BIT = 13;
 bit  [D_W-1:0] I_DIVIDEND ;
 bit  [D_W-1:0] I_DIVISOR  ;
 logic [D_W-1:0] O_QUOTIENT ;
@@ -10,7 +11,8 @@ bit [D_W-1+13:0] q_compare_full;
 bit [D_W-1:0] q_compare;
 bit [D_W-1+13:0] dividend_full;
 div_fast#(
-    .D_W(D_W)
+    .D_W(D_W),
+    .FRAC_BIT(FRAC_BIT)
 )u_dut_div_fast(
     .I_DIVIDEND(I_DIVIDEND),
     .I_DIVISOR (I_DIVISOR ),

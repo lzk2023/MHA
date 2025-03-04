@@ -1,5 +1,5 @@
 `timescale 1ns / 1ps
-module softmax#(  
+module softmax#(                        //safe_softmax
     parameter D_W = 16,
     parameter NUM = 16 //word number
 )(

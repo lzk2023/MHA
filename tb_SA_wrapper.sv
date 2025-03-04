@@ -15,7 +15,7 @@ bit                     I_START_FLAG ;
 bit   [SA_R*SA_C*D_W-1:0] I_X_MATRIX   ;
 bit   [SA_R*SA_C*D_W-1:0] I_W_MATRIX   ;
   
-//logic                        O_MATRIX_OVER;
+//logic                        O_MATRIX_OVER;//
 logic  [(SA_R*SA_C*D_W)-1:0] O_OUT        ;
 logic                        O_PE_SHIFT   ;
 logic                        O_OUT_VLD    ;

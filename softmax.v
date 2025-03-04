@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 module softmax#(  
     parameter D_W = 16,
-    parameter NUM = 64 //word number
+    parameter NUM = 16 //word number
 )(
     input                    I_CLK  ,
     input                    I_RST_N,

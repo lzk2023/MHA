@@ -1,9 +1,13 @@
 `timescale 1ns/1ps
+///////////////////////////////////////////////////////////////////
+//Input the two input matrices into the systolic array in the correct input format.
+//将两个输入矩阵以正确的输入形式输入到脉动阵列中
+///////////////////////////////////////////////////////////////////
 `include "defines.v"
 module SA_mat_manager#(
     parameter D_W   = 16,
     parameter X_R   = 16,
-    parameter M_DIM = 64,//X_C == W_R == M_DIM,dimention of the 2 multiply matrix.
+    parameter M_DIM = 16,//X_C == W_R == M_DIM,dimention of the 2 multiply matrix.
     parameter W_C   = 16
 )(
     input                      I_CLK      ,

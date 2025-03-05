@@ -2,11 +2,11 @@
 module adder#(
     parameter W = 16
 )(
-    input  [W-1:0] I_IN1,
-    input  [W-1:0] I_IN2,
-    output [W:0]   O_OUT
+    input  logic [W-1:0] I_IN1,
+    input  logic [W-1:0] I_IN2,
+    output logic [W:0]   O_OUT
 );
-wire [W-1:0] carry;
+logic [W-1:0] carry;
 generate
     for(genvar i=0;i<W;i=i+1)begin
         if(i==0)begin

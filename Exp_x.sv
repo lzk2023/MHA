@@ -21,17 +21,17 @@
 
 
 module Exp_x(
-    input      [15:0] I_X    ,
-    output reg [15:0] O_EXP
+    input  logic [15:0] I_X    ,
+    output logic [15:0] O_EXP
     );
-    wire [31:0] mul_out;
-    wire [16:0] uivi;
-    wire [15:0] uivi_ab;//absolute value
-    wire [2:0]  ui;
-    wire [12:0] vi;
-    wire        uivi_msb;
-    wire [15:0] p_2_vi;
-    wire [15:0] n_2_vi;
+    logic [31:0] mul_out;
+    logic [16:0] uivi;
+    logic [15:0] uivi_ab;//absolute value
+    logic [2:0]  ui;
+    logic [12:0] vi;
+    logic        uivi_msb;
+    logic [15:0] p_2_vi;
+    logic [15:0] n_2_vi;
     mul_fast #(
         .IN_DW(16)
     )u_mul_in_loge(
@@ -52,7 +52,7 @@ module Exp_x(
         .vi    (vi),
         .result(n_2_vi)
     );
-    always@(*)begin
+    always_comb begin
         if($signed(I_X) >= $signed(16'd11357))begin//I_X >= ln4
             O_EXP = 16'b0_11_11111_1111_1111;
         end else begin

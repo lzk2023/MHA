@@ -23,10 +23,10 @@
 module mul_shift#(
     parameter D_W = 16
 )(
-    input  [D_W*2-1:0] I_IN1 ,
-    input              I_IN2 ,
-    output [D_W*2-1:0] O_OUT ,
-    output [D_W*2-1:0] O_SFT1
+    input  logic [D_W*2-1:0] I_IN1 ,
+    input  logic             I_IN2 ,
+    output logic [D_W*2-1:0] O_OUT ,
+    output logic [D_W*2-1:0] O_SFT1
     );
     assign O_OUT =  (I_IN2 ? I_IN1 : 0);
     assign O_SFT1 = I_IN1<<1;

@@ -7,26 +7,19 @@ bit                I_CLK        ;
 bit                I_ASYN_RSTN  ;
 bit                I_SYNC_RSTN  ;
 bit                I_ATTN_START ;
-bit [16*16*16-1:0] I_MAT_Q      ;
-bit [16*16*16-1:0] I_MAT_K      ;
-bit [16*16*16-1:0] I_MAT_V      ;
 
 bit [16-1:0] Q_MATRIX [0:16-1][0:16-1];
 bit [16-1:0] K_MATRIX [0:16-1][0:16-1];
 bit [16-1:0] V_MATRIX [0:16-1][0:16-1];
 
-`MATRIX_TO_VARIABLE(16,16,16,I_MAT_Q,Q_MATRIX) //format:(D_W,ROW,COLUMN,VARIABLE,ARRAY)
-`MATRIX_TO_VARIABLE(16,16,16,I_MAT_K,K_MATRIX) //format:(D_W,ROW,COLUMN,VARIABLE,ARRAY)
-`MATRIX_TO_VARIABLE(16,16,16,I_MAT_V,V_MATRIX) //format:(D_W,ROW,COLUMN,VARIABLE,ARRAY)
-
 logic                O_SA_START ;
 logic                O_SA_CLEARN;
-logic [16*16*16-1:0] O_MAT_1    ;
-logic [16*16*16-1:0] O_MAT_2    ;
+logic [15:0] O_MAT_1 [0:15][0:15]   ;
+logic [15:0] O_MAT_2 [0:15][0:15]   ;
 logic                O_DATA_VLD ;
-logic [16*16*16-1:0] O_ATT_DATA ;
+logic [15:0] O_ATT_DATA [0:15][0:15];
 logic                I_SA_VLD     ;
-logic [16*16*16-1:0] I_SA_RESULT  ;
+logic [15:0] I_SA_RESULT [0:15][0:15] ;
 logic                I_PE_SHIFT   ;
 
 attention#(
@@ -35,16 +28,16 @@ attention#(
     .SA_C  (16),
     .M_DIM (16),       //to SA_wrapper
     .DIM   (16),       //sequence length
-    .D_K   (16)        //Q,K,V column num（dimention/h_num�?
+    .D_K   (16)        //Q,K,V column num（dimention/h_num�?
 )u_dut_attention(
     .I_CLK          (I_CLK        ),
     .I_ASYN_RSTN    (I_ASYN_RSTN  ),
     .I_SYNC_RSTN    (I_SYNC_RSTN  ),
     .I_ATTN_START   (I_ATTN_START ),
     .I_PE_SHIFT     (I_PE_SHIFT   ),//connect to SA_wrapper O_PE_SHIFT
-    .I_MAT_Q        (I_MAT_Q      ),
-    .I_MAT_K        (I_MAT_K      ),
-    .I_MAT_V        (I_MAT_V      ),
+    .I_MAT_Q        (Q_MATRIX      ),
+    .I_MAT_K        (K_MATRIX      ),
+    .I_MAT_V        (V_MATRIX      ),
     .I_SA_VLD       (I_SA_VLD     ),//valid from SA
     .I_SA_RESULT    (I_SA_RESULT  ),//16*16*D_W,from SA
     .O_SA_START     (O_SA_START   ),//to SA_wrapper

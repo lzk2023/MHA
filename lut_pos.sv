@@ -21,13 +21,13 @@
 
 
 module lut_pos(
-    input       [12:0]   vi      ,
-    output  reg [15:0]  result  
+    input  logic [12:0]   vi      ,
+    output logic [15:0]  result  
 );
-wire [25:0] mul_2_26b;
-wire [25:0] mul_3_26b;
-wire [15:0] mul_2;//    ln2*x
-wire [15:0] mul_3;//    sqrt(2)*ln2*x
+logic [25:0] mul_2_26b;
+logic [25:0] mul_3_26b;
+logic [15:0] mul_2;//    ln2*x
+logic [15:0] mul_3;//    sqrt(2)*ln2*x
 
 //assign mul_2_26b = 13'd5678 * vi;
 assign mul_2 = {3'b000,mul_2_26b[25:13]};
@@ -49,7 +49,7 @@ mul_fast #(
         .O_MUL_OUT (mul_3_26b)
     );
 
-always @(*) begin
+always_comb begin
     if(vi < 13'd2166) begin    //2^x = 1 + ln2*x                         (-0.235595703125<x<0.264404296875)
         result <= 16'h2000 + mul_2;
     end

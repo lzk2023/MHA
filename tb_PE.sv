@@ -55,11 +55,12 @@ initial begin
         o_comp_32 = $signed(I_X) * $signed(I_W);
         o_comp_16 = $signed({o_comp_32[31],o_comp_32[27:13]});
         o_comp_d  =o_comp_16 + o_comp_d;
-        @(negedge O_VLD);
+        @(negedge I_CLK);
     end
 end
 
 always@(posedge I_CLK)begin
+    #1
     if(O_VLD)begin
         if(O_D == o_comp_d)begin
             correct <= 1;

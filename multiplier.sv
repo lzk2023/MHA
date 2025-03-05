@@ -22,28 +22,32 @@
 module multiplier#(
     parameter D_W = 16
 )(
-    input                 I_CLK      ,
-    input                 I_ASYN_RSTN,
-    input                 I_SYNC_RSTN,
-    input                 I_VLD      ,//input valid
-    input      [D_W-1:0]  I_M1       ,//multiplicand(被乘数)
-    input      [D_W-1:0]  I_M2       ,//multiplier  (乘数)
-    output reg            O_VLD      ,//output valid
-    output     [D_W-1:0]  O_PRODUCT   //product     (积)
+    input  logic            I_CLK      ,
+    input  logic            I_ASYN_RSTN,
+    input  logic            I_SYNC_RSTN,
+    input  logic            I_VLD      ,//input valid
+    input  logic [D_W-1:0]  I_M1       ,//multiplicand(被乘数)
+    input  logic [D_W-1:0]  I_M2       ,//multiplier  (乘数)
+    output logic            O_VLD      ,//output valid
+    output logic [D_W-1:0]  O_PRODUCT   //product     (积)
 );
-localparam S_IDLE = 3'b001;
-localparam S_CAL  = 3'b010;
-localparam S_END  = 3'b100;
-wire [D_W*2-1:0]       prod_shift ;
-wire [D_W*2-1:0]       prod_32    ;
-wire [D_W*2-1:0]       m1_reg_sft;
 
-reg  [2:0]             state      ;
-reg  [D_W*2-1:0]       product_reg;//16 bits * 16bits
-reg  [D_W*2-1:0]       m1_reg     ;
-reg  [D_W-2:0]         m2_reg     ;//reg input(absolute value)  寄存输入数据
-reg                    m2_msb     ;
-reg  [$clog2(D_W)-1:0] mul_cycle  ;//
+enum logic [2:0] {
+    S_IDLE = 3'b001,
+    S_CAL  = 3'b010,
+    S_END  = 3'b100
+} state;
+
+logic [D_W*2-1:0]       prod_shift ;
+logic [D_W*2-1:0]       prod_32    ;
+logic [D_W*2-1:0]       m1_reg_sft;
+
+
+logic [D_W*2-1:0]       product_reg;//16 bits * 16bits
+logic [D_W*2-1:0]       m1_reg     ;
+logic [D_W-2:0]         m2_reg     ;//reg input(absolute value)  寄存输入数据
+logic                   m2_msb     ;
+logic [$clog2(D_W)-1:0] mul_cycle  ;//
 generate
     if(D_W == 16)begin
         assign O_PRODUCT = {prod_32[31],prod_32[27:13]};
@@ -53,7 +57,7 @@ generate
 endgenerate
 
 assign prod_32 = product_reg - (m2_msb ? m1_reg : 0);//select output 选择输出
-always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
+always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
     if(!I_ASYN_RSTN | !I_SYNC_RSTN)begin
         state      <= S_IDLE;
         m1_reg     <= 'b0;
@@ -108,7 +112,7 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
     end
 end
 
-always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
+always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
     if(!I_ASYN_RSTN | !I_SYNC_RSTN)begin
         product_reg <= 'b0;
     end else if(state == S_CAL)begin

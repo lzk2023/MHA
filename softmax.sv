@@ -18,15 +18,16 @@ enum logic [3:0] {
     S_END  = 4'b1000 
 } state;
 
-logic [D_W-1:0] data_e_x [0:NUM-1];
-logic [D_W-1:0] data_e_x_ff [0:NUM-1];
-logic [D_W-1:0] data_e_x_ff_sum;
-logic [D_W-1:0] quotient [0:NUM-1];
+logic [15:0] data_e_x [0:NUM-1];
+logic [15:0] data_e_x_ff [0:NUM-1];
+logic [15:0] data_e_x_ff_sum;
+logic [15:0] quotient [0:NUM-1];
 //reg  [D_W-1+2:0] data_sum;//data_max extend
-logic  [D_W-1:0] data_sum;
-logic  [1:0]    add_div_cnt;
+logic  [15:0] data_sum;
+logic  [1:0]  add_div_cnt;
 
 integer j;
+integer k;
 
 //divider#(
 //    .D_W(D_W)
@@ -41,17 +42,20 @@ integer j;
 //);
 generate
     if(D_W == 8)begin
+        logic [15:0] in_exp_16bit [0:NUM-1]; 
+        logic [7:0] in_div_8bit [0:NUM-1]; 
         for(genvar i=0;i<NUM;i=i+1)begin
+            assign in_exp_16bit[i] = {I_DATA[i],8'b0};
             Exp_x #(
-                .D_W(D_W)
-            )u_exp_x_8bit(         //data format:16bit
-                .I_X  (I_DATA[i]) ,
+                .D_W(16)
+            )u_exp_x_16bit(         //data format:16bit
+                .I_X  (in_exp_16bit[i]) ,
                 .O_EXP(data_e_x[i])
             );
 
             div_fast #(
-                .D_W     (D_W),
-                .FRAC_BIT(5)    //fraction bits
+                .D_W     (16),
+                .FRAC_BIT(13)    //fraction bits
             )u_fast_divider_8bit(
                 .I_DIVIDEND(data_e_x[i]),
                 .I_DIVISOR (data_sum),
@@ -131,7 +135,9 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
                         //if(div_vld)begin
                         if(1)begin
                             add_div_cnt <= add_div_cnt + 1;
-                            O_DATA <= quotient;
+                            for(k=0;k<NUM;k=k+1)begin
+                                O_DATA[k] <= quotient[k][15:8];
+                            end
                         end else begin
                             add_div_cnt <= add_div_cnt;
                         end

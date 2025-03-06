@@ -1,5 +1,5 @@
 module mul_fast#(
-    parameter IN_DW = 16
+    parameter IN_DW = 8
 )(
     input  logic [IN_DW-1:0]   I_IN1    ,
     input  logic [IN_DW-1:0]   I_IN2    ,

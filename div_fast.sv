@@ -7,15 +7,21 @@ module div_fast#(
     input  logic [D_W-1:0] I_DIVISOR ,
     output logic [D_W-1:0] O_QUOTIENT
 );
-logic              dividend_msb = I_DIVIDEND[D_W-1]  ;//被除数最高位
-logic [D_W-2+FRAC_BIT:0] dividend_pos = (dividend_msb ? (~I_DIVIDEND[D_W-2:0]+1):I_DIVIDEND[D_W-2:0]) << FRAC_BIT;//被除数绝对值 扩13位（小数位数量）
-logic              divisor_msb  = I_DIVISOR[D_W-1]   ;//除数最高位
-logic [D_W-2:0] divisor_pos = (divisor_msb ? (~I_DIVISOR[D_W-2:0]+1):I_DIVISOR[D_W-2:0]);//除数绝对值
+logic              dividend_msb;//被除数最高位
+logic [D_W-2+FRAC_BIT:0] dividend_pos;//被除数绝对值 扩13位（小数位数量）
+logic              divisor_msb;//除数最高位
+logic [D_W-2:0] divisor_pos;//除数绝对值
 logic [D_W-1+FRAC_BIT:0] quotient_full;
-logic [D_W-2+FRAC_BIT:0] quotient = temp_dividend[D_W-2+FRAC_BIT:0];
+logic [D_W-2+FRAC_BIT:0] quotient;
 
 logic [(D_W-1+FRAC_BIT)*2-1:0] temp_dividend;
 logic [(D_W-1)+(D_W-1+FRAC_BIT)-1:0]temp_divisor;
+
+assign dividend_msb = I_DIVIDEND[D_W-1]  ;//被除数最高位
+assign dividend_pos = (dividend_msb ? (~I_DIVIDEND[D_W-2:0]+1):I_DIVIDEND[D_W-2:0]) << FRAC_BIT;//被除数绝对值 扩13位（小数位数量）
+assign divisor_msb  = I_DIVISOR[D_W-1]   ;//除数最高位
+assign divisor_pos = (divisor_msb ? (~I_DIVISOR[D_W-2:0]+1):I_DIVISOR[D_W-2:0]);//除数绝对值
+assign quotient = temp_dividend[D_W-2+FRAC_BIT:0];
 
 assign quotient_msb = dividend_msb ^ divisor_msb;
 assign quotient_full[D_W-2+FRAC_BIT:0] = (I_DIVIDEND==0) ? 0 : (quotient_msb ? ~quotient + 1 : quotient);

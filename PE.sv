@@ -21,7 +21,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 module PE#(
-    parameter D_W = 16
+    parameter D_W = 8
 )
 (
     input  logic           I_CLK      ,
@@ -47,7 +47,8 @@ always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
     end else if(I_VLD)begin
         O_X     <= I_X;
         O_W     <= I_W;
-        O_D     <= O_D + {o_mul_out[31],o_mul_out[27:13]};
+        //O_D     <= O_D + {o_mul_out[31],o_mul_out[27:13]};   //D_W==16
+        O_D     <= O_D + {o_mul_out[15],o_mul_out[11:5]};   //D_W==8
         O_VLD   <= 'b1;
     end else begin
         O_X     <= O_X;

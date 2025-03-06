@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////
 `include "defines.v"
 module SA_mat_manager#(
-    parameter D_W   = 16,
+    parameter D_W   = 8,
     parameter X_R   = 16,
     parameter M_DIM = 16,//X_C == W_R == M_DIM,dimention of the 2 multiply matrix.
     parameter W_C   = 16

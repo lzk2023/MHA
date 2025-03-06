@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 `include "defines.v"
 module attention#(
-    parameter D_W   = 16,
+    parameter D_W   = 8,
     parameter SA_R  = 16,
     parameter SA_C  = 16,
     parameter M_DIM = 16,       //to SA_wrapper
@@ -26,8 +26,8 @@ module attention#(
     output logic [D_W-1:0] O_ATT_DATA  [0:DIM-1][0:D_K-1]    
 );
 localparam SQRT_DK    = 4                       ;//square root d_k
-localparam S_DK_VALUE = 16'b0_00_0100_0000_00000;//0.25=1/4
-
+//localparam S_DK_VALUE = 16'b0_00_0100_0000_00000;//0.25=1/4
+localparam S_DK_VALUE = 8'b0_00_0100;//0.25=1/4
 enum logic [10:0] {
     S_IDLE     = 11'b000_0000_0001,
     S_CLEAR0   = 11'b000_0000_0010,
@@ -176,9 +176,10 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                 state       <= S_P_V    ;
                 O_SA_CLEARN <= 1        ;
                 O_SA_START  <= 1        ;
+                softmax_start <= 0      ;
             end
             S_P_V     :begin
-                if(out_vld)begin
+                if(I_SA_VLD)begin
                     state       <= S_CLEAR4   ;
                     O_MAT_1     <= O_MAT_1    ;
                     O_MAT_2     <= O_MAT_2    ;

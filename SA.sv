@@ -22,7 +22,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 `include "defines.v"
 module SA #(
-    parameter D_W  = 16,
+    parameter D_W  = 8,
     parameter SA_R = 16,
     parameter SA_C = 16
 )

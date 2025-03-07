@@ -59,7 +59,7 @@ always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
     if(!I_ASYN_RSTN | !I_SYNC_RSTN)begin
         count <= 'b0;
     end else if(matshift_over)begin
-        if(count < 10'd29)begin
+        if(count < 10'd31)begin
             count <= count + 1;
         end else begin
             count <= count;
@@ -85,7 +85,7 @@ always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                 end
             end
             S_CALC:begin
-                if(count == 10'd29)begin
+                if(count == 10'd31)begin
                     state <= S_END;
                     O_OUT_VLD <= 1;
                 end else begin

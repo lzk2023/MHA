@@ -25,6 +25,8 @@ logic [15:0] quotient [0:NUM-1];
 //reg  [D_W-1+2:0] data_sum;//data_max extend
 logic  [15:0] data_sum;
 logic  [1:0]  add_div_cnt;
+logic         div_vld;
+logic         div_start;
 
 integer j;
 integer k;
@@ -57,9 +59,13 @@ generate
                 .D_W     (16),
                 .FRAC_BIT(13)    //fraction bits
             )u_fast_divider_8bit(
-                .I_DIVIDEND(data_e_x[i]),
-                .I_DIVISOR (data_sum),
-                .O_QUOTIENT(quotient[i])
+                .I_CLK      (I_CLK    ),
+                .I_RST_N    (I_RST_N  ),
+                .I_DIV_START(div_start),//开始标志,计算时应保持
+                .I_DIVIDEND (data_e_x[i]),
+                .I_DIVISOR  (data_sum   ),
+                .O_QUOTIENT (quotient[i]),
+                .O_VLD      (div_vld) 
             );
         end
     end else begin //D_W == 16
@@ -75,9 +81,13 @@ generate
                 .D_W     (D_W),
                 .FRAC_BIT(13)    //fraction bits
             )u_fast_divider_16bit(
-                .I_DIVIDEND(data_e_x[i]),
-                .I_DIVISOR (data_sum),
-                .O_QUOTIENT(quotient[i])
+                .I_CLK      (I_CLK    ),
+                .I_RST_N    (I_RST_N  ),
+                .I_DIV_START(div_start),//开始标志,计算时应保持
+                .I_DIVIDEND (data_e_x[i]),
+                .I_DIVISOR  (data_sum   ),
+                .O_QUOTIENT (quotient[i]),
+                .O_VLD      (div_vld) 
             );
         end
     end
@@ -119,6 +129,7 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
                         data_e_x_ff <= data_e_x;
                     end else begin
                         state <= S_DIV;
+                        div_start <= 1;
                         add_div_cnt <= 0;
                         data_sum <= data_e_x_ff_sum;
                     end
@@ -132,8 +143,7 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
             S_DIV  :begin
                 if(I_START)begin
                     if(add_div_cnt < 1)begin
-                        //if(div_vld)begin
-                        if(1)begin
+                        if(div_vld)begin
                             add_div_cnt <= add_div_cnt + 1;
                             for(k=0;k<NUM;k=k+1)begin
                                 O_DATA[k] <= quotient[k][15:8];
@@ -143,6 +153,7 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
                         end
                     end else begin
                         state <= S_END;
+                        div_start <= 0;
                         add_div_cnt <= 0;
                     end
                 end else begin

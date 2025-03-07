@@ -25,7 +25,8 @@ logic [15:0] quotient [0:NUM-1];
 //reg  [D_W-1+2:0] data_sum;//data_max extend
 logic  [15:0] data_sum;
 logic  [1:0]  add_div_cnt;
-logic         div_vld;
+logic  [NUM-1:0] div_vld ;
+logic         div_vld_all;
 logic         div_start;
 
 integer j;
@@ -65,7 +66,7 @@ generate
                 .I_DIVIDEND (data_e_x[i]),
                 .I_DIVISOR  (data_sum   ),
                 .O_QUOTIENT (quotient[i]),
-                .O_VLD      (div_vld) 
+                .O_VLD      (div_vld[i]) 
             );
         end
     end else begin //D_W == 16
@@ -87,11 +88,13 @@ generate
                 .I_DIVIDEND (data_e_x[i]),
                 .I_DIVISOR  (data_sum   ),
                 .O_QUOTIENT (quotient[i]),
-                .O_VLD      (div_vld) 
+                .O_VLD      (div_vld[i]) 
             );
         end
     end
 endgenerate
+
+assign div_vld_all = & div_vld;
 
 always_comb begin
     data_e_x_ff_sum = 0;
@@ -143,7 +146,7 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
             S_DIV  :begin
                 if(I_START)begin
                     if(add_div_cnt < 1)begin
-                        if(div_vld)begin
+                        if(div_vld_all)begin
                             add_div_cnt <= add_div_cnt + 1;
                             for(k=0;k<NUM;k=k+1)begin
                                 O_DATA[k] <= quotient[k][15:8];

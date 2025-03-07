@@ -27,7 +27,7 @@ module attention#(
 );
 localparam SQRT_DK    = 4                       ;//square root d_k
 //localparam S_DK_VALUE = 16'b0_00_0100_0000_00000;//0.25=1/4
-localparam S_DK_VALUE = 8'b0_00_0100;//0.25=1/4
+localparam S_DK_VALUE = 8'b0_00_01000;//0.25=1/4
 enum logic [10:0] {
     S_IDLE     = 11'b000_0000_0001,
     S_CLEAR0   = 11'b000_0000_0010,

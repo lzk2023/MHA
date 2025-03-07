@@ -1,7 +1,8 @@
 `timescale 1ns/1ps
 module div_fast#(
     parameter D_W = 16,
-    parameter FRAC_BIT = 13    //fraction bits
+    parameter FRAC_BIT = 13,    //fraction bits
+    parameter USE_IN_SOFTMAX = 0
 )(
     input  logic           I_CLK      ,
     input  logic           I_RST_N    ,
@@ -31,7 +32,13 @@ enum logic [1:0]{
 }state;
 
 assign dividend_msb = I_DIVIDEND[D_W-1]  ;//被除数最高位
-assign dividend_pos = (dividend_msb ? (~I_DIVIDEND[D_W-2:0]+1):I_DIVIDEND[D_W-2:0]) << FRAC_BIT;//被除数绝对值 扩13位（小数位数量）
+generate
+    if(USE_IN_SOFTMAX == 1)begin
+        assign dividend_pos = (dividend_msb ? (~I_DIVIDEND[D_W-2:0]+1):I_DIVIDEND[D_W-2:0]) << FRAC_BIT-2;//被除数绝对值 扩13-2位（小数位数量）
+    end else begin
+        assign dividend_pos = (dividend_msb ? (~I_DIVIDEND[D_W-2:0]+1):I_DIVIDEND[D_W-2:0]) << FRAC_BIT;//被除数绝对值 扩13位（小数位数量）
+    end
+endgenerate
 assign divisor_msb  = I_DIVISOR[D_W-1]   ;//除数最高位
 assign divisor_pos = (divisor_msb ? (~I_DIVISOR[D_W-2:0]+1):I_DIVISOR[D_W-2:0]);//除数绝对值
 assign quotient = temp_dividend[D_W-2+FRAC_BIT:0];

@@ -207,7 +207,7 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
     end
 end
 
-softmax#(  
+safe_softmax#(  
     .D_W(D_W),
     .NUM(D_K) //dimention
 )u_softmax_for_attn(

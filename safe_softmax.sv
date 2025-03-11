@@ -148,7 +148,11 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
                         if(div_vld_all)begin
                             add_div_cnt <= add_div_cnt + 1;
                             for(k=0;k<NUM;k=k+1)begin
-                                O_DATA[k] <= quotient[k][15:8];
+                                if(quotient[k][7] == 1)begin
+                                    O_DATA[k] <= quotient[k][15:8] + 1;   //round
+                                end else begin
+                                    O_DATA[k] <= quotient[k][15:8];
+                                end
                             end
                         end else begin
                             add_div_cnt <= add_div_cnt;

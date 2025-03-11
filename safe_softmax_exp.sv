@@ -19,7 +19,7 @@ mul_fast #(
     .I_IN2     (16'd11819),//1.442695040889*2^13//
     .O_MUL_OUT (mul_out  )
 );
-assign uivi = {mul_out[31],mul_out[28:13]};//[16:0]expand 1 bit
+assign uivi = mul_out[12] ? {mul_out[31],mul_out[28:13]} + 1 : {mul_out[31],mul_out[28:13]};//[16:0]expand 1 bit
 assign uivi_ab = (uivi == 0) ? 0 : ~uivi[15:0] + 1'b1;
 assign ui = uivi_ab[15:13];
 assign vi = uivi_ab[12:0];

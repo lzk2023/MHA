@@ -19,10 +19,10 @@ logic [15:0] mul_2;//    ln2*x
 
 assign vi_neg = {1'b1,~vi + 1'b1};
 //assign mul_1_full = $signed(14'd4015) * $signed(vi_neg);
-assign mul_3 = {mul_3_full[27],2'b11,mul_3_full[25:13]};
-assign mul_1 = {mul_1_full[27],2'b11,mul_1_full[25:13]};
+assign mul_3 = mul_3_full[12] ? {mul_3_full[27],2'b11,mul_3_full[25:13]} + 1 : {mul_3_full[27],2'b11,mul_3_full[25:13]};//round
+assign mul_1 = mul_1_full[12] ? {mul_1_full[27],2'b11,mul_1_full[25:13]} + 1 : {mul_1_full[27],2'b11,mul_1_full[25:13]};//round
 //assign mul_2_full = $signed(14'd5678) * $signed(vi_neg);
-assign mul_2 = {mul_2_full[27],2'b11,mul_2_full[25:13]};
+assign mul_2 = mul_2_full[12] ? {mul_2_full[27],2'b11,mul_2_full[25:13]} + 1 : {mul_2_full[27],2'b11,mul_2_full[25:13]};//round
 mul_fast #(
     .IN_DW(14)
 )u_mul_3(

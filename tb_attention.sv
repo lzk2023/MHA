@@ -28,7 +28,7 @@ attention#(
     .SA_C  (16),
     .M_DIM (16),       //to SA_wrapper
     .DIM   (16),       //sequence length
-    .D_K   (16)        //Q,K,V column num（dimention/h_num�??
+    .D_K   (16)        //Q,K,V column num（dimention/h_num�??
 )u_dut_attention(
     .I_CLK          (I_CLK        ),
     .I_ASYN_RSTN    (I_ASYN_RSTN  ),
@@ -50,6 +50,7 @@ attention#(
 
 SA_wrapper#(
     .D_W        (8         ),
+    .M_DIM      (16        ),
     .SA_R       (16         ),  //SA_ROW,        SA.shape = (SA_R,SA_C)
     .SA_C       (16         )   //SA_COLUMN,     
 ) u_dut_SA_top(

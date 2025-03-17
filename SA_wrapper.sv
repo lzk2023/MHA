@@ -23,7 +23,7 @@
 
 module SA_wrapper#(
     parameter D_W   = 8,  //Data_Width
-    parameter M_DIM = 16,
+    parameter M_DIM = 128, //X_C == W_R == M_DIM,dimention of the 2 multiply matrix.
     parameter SA_R  = 16,  //SA_ROW,     SA.shape = (SA_R,SA_C)
     parameter SA_C  = 16   //SA_COLUMN
 ) (

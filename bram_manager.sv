@@ -20,7 +20,7 @@ enum logic [2:0] {
 logic          delay_ff;
 logic [1:0]    sel;
 logic          ena;
-logic [7:0]    addra;
+logic [9:0]    addra;
 logic [4095:0] douta;
 logic [7:0]    dout_mat [0:3][0:127];
 

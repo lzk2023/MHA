@@ -30,7 +30,7 @@ logic [4095:0] dina;
 logic [4095:0] douta;
 logic [7:0]    dout_mat [0:3][0:127];
 
-assign addra = {I_SEL,sel};//{2'b0,[5:0],[1:0]}
+assign addra = {I_SEL,sel}; //{[7:0],[1:0]}
 bram_ip u_single_port_ram (
     .clka (I_CLK), // input wire clka
     .ena  (ena  ), // input wire ena

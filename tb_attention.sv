@@ -23,21 +23,21 @@ logic [7:0] I_SA_RESULT [0:15][0:15] ;
 logic                I_PE_SHIFT   ;
 
 attention#(
-    .D_W   (8),
+    .D_W   (8 ),
     .SA_R  (16),
     .SA_C  (16),
     .M_DIM (16),       //to SA_wrapper
     .DIM   (16),       //sequence length
-    .D_K   (16)        //Q,K,V column num（dimention/h_num�??
+    .D_K   (16)        //Q,K,V column num（dimention/h_num)
 )u_dut_attention(
     .I_CLK          (I_CLK        ),
     .I_ASYN_RSTN    (I_ASYN_RSTN  ),
     .I_SYNC_RSTN    (I_SYNC_RSTN  ),
     .I_ATTN_START   (I_ATTN_START ),
     .I_PE_SHIFT     (I_PE_SHIFT   ),//connect to SA_wrapper O_PE_SHIFT
-    .I_MAT_Q        (Q_MATRIX      ),
-    .I_MAT_K        (K_MATRIX      ),
-    .I_MAT_V        (V_MATRIX      ),
+    .I_MAT_Q        (Q_MATRIX     ),
+    .I_MAT_K        (K_MATRIX     ),
+    .I_MAT_V        (V_MATRIX     ),
     .I_SA_VLD       (I_SA_VLD     ),//valid from SA
     .I_SA_RESULT    (I_SA_RESULT  ),//16*16*D_W,from SA
     .O_SA_START     (O_SA_START   ),//to SA_wrapper
@@ -51,8 +51,8 @@ attention#(
 SA_wrapper#(
     .D_W        (8         ),
     .M_DIM      (16        ),
-    .SA_R       (16         ),  //SA_ROW,        SA.shape = (SA_R,SA_C)
-    .SA_C       (16         )   //SA_COLUMN,     
+    .SA_R       (16        ),  //SA_ROW,        SA.shape = (SA_R,SA_C)
+    .SA_C       (16        )   //SA_COLUMN,     
 ) u_dut_SA_top(
     .I_CLK          (I_CLK        ),
     .I_ASYN_RSTN    (I_ASYN_RSTN  ),

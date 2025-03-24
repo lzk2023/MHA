@@ -25,26 +25,33 @@ initial begin
     #100
     I_RST_N = 1;
     I_RD_VLD_PULSE = 1;
-    I_SEL = 0;
+    I_SEL[7:6] = 2'b00;
+    I_SEL[5:0] = 0;
     #10
     I_RD_VLD_PULSE = 0;
     @(O_VLD)
     @(posedge I_CLK)
     I_RD_VLD_PULSE = 1;
-    I_SEL = 1;
+    I_SEL[7:6] = 2'b01;
     #10
     I_RD_VLD_PULSE = 0;
     @(O_VLD)
     @(posedge I_CLK)
     I_RD_VLD_PULSE = 1;
-    I_SEL = 4;
+    I_SEL[7:6] = 2'b10;
+    #10
+    I_RD_VLD_PULSE = 0;
+    @(O_VLD)
+    @(posedge I_CLK)
+    I_RD_VLD_PULSE = 1;
+    I_SEL[7:6] = 2'b11;
     #10
     I_RD_VLD_PULSE = 0;
 
     @(O_VLD)
     @(posedge I_CLK)
     I_WR_VLD_PULSE = 1;
-    I_SEL = 4;
+    I_SEL[7:6] = 2'b11;
     I_MAT = '{
         '{128{8'h55}},
         '{128{8'h66}},
@@ -71,7 +78,7 @@ initial begin
     @(O_WR_DONE)
     @(posedge I_CLK)
     I_RD_VLD_PULSE = 1;
-    I_SEL = 4;
+    I_SEL[7:6] = 2'b11;
     #10
     I_RD_VLD_PULSE = 0;
     #200

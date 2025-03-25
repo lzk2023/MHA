@@ -7,6 +7,8 @@ module safe_softmax#(                        //safe_softmax
     input  logic           I_RST_N          ,
     input  logic           I_START          ,//keep when calculate
     input  logic [D_W-1:0] I_DATA [0:NUM-1] ,
+    output logic [7:0]     O_X_MAX          ,
+    output logic [17:0]    O_EXP_SUM        ,
     output logic           O_VLD            ,
     output logic [D_W-1:0] O_DATA [0:NUM-1]
 );
@@ -30,6 +32,9 @@ logic  [NUM-1:0] div_vld ;
 logic         div_vld_all;
 logic         div_start;
 
+assign O_X_MAX = data_x_max;
+assign O_EXP_SUM = data_e_x_ff_sum;
+
 sel_max#(
     .D_W(8)
 )u_sel_max(
@@ -43,7 +48,6 @@ integer k;
 generate
     if(D_W == 8)begin
         logic [15:0] in_exp_16bit [0:NUM-1]; 
-        logic [7:0] in_div_8bit [0:NUM-1]; 
         for(genvar i=0;i<NUM;i=i+1)begin
             assign in_exp_16bit[i] = {I_DATA[i],8'b0} - {data_x_max,8'b0};
             safe_softmax_exp #(

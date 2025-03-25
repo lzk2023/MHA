@@ -4,9 +4,8 @@ module attention#(
     parameter D_W   = 8,
     parameter SA_R  = 16,
     parameter SA_C  = 16,
-    parameter M_DIM = 16,       //to SA_wrapper
     parameter DIM   = 16,       //sequence length
-    parameter D_K   = 16        //Q,K,V column num（dimention/h_num）
+    parameter D_K   = 128        //Q,K,V column num（dimention/h_num）
 )(
     input  logic           I_CLK                            ,
     input  logic           I_ASYN_RSTN                      ,
@@ -16,18 +15,17 @@ module attention#(
     input  logic [D_W-1:0] I_MAT_Q     [0:DIM-1][0:D_K-1]   ,
     input  logic [D_W-1:0] I_MAT_K     [0:DIM-1][0:D_K-1]   ,
     input  logic [D_W-1:0] I_MAT_V     [0:DIM-1][0:D_K-1]   ,
+    input  logic [D_W-1:0] I_MAT_O     [0:DIM-1][0:D_K-1]   ,
     input  logic           I_SA_VLD                         ,//valid from SA
     input  logic [D_W-1:0] I_SA_RESULT [0:SA_R-1][0:SA_C-1] ,//16*16*D_W,from SA
     output logic           O_SA_START                       ,//to SA_wrapper
     output logic           O_SA_CLEARN                      ,//to SA_wrapper SYNC_RSTN
-    output logic [D_W-1:0] O_MAT_1     [0:SA_R-1][0:M_DIM-1],//to SA_wrapper
-    output logic [D_W-1:0] O_MAT_2     [0:M_DIM-1][0:SA_C-1],//to SA_wrapper
+    output logic [D_W-1:0] O_MAT_1     [0:SA_R-1][0:127]    ,//to SA_wrapper
+    output logic [D_W-1:0] O_MAT_2     [0:127][0:SA_C-1]    ,//to SA_wrapper
     output logic           O_DATA_VLD                       ,
     output logic [D_W-1:0] O_ATT_DATA  [0:DIM-1][0:D_K-1]    
 );
-localparam SQRT_DK    = 4                       ;//square root d_k
-//localparam S_DK_VALUE = 16'b0_00_0100_0000_00000;//0.25=1/4
-localparam S_DK_VALUE = 8'b0_00_01000;//0.25=1/4
+localparam S_DK_VALUE = 8'd3;//0.08838*32,1/(sqrt(dk=128))
 enum logic [10:0] {
     S_IDLE     = 11'b000_0000_0001,
     S_CLEAR0   = 11'b000_0000_0010,
@@ -42,18 +40,18 @@ enum logic [10:0] {
     S_O        = 11'b100_0000_0000 
 } state;
 
-//wire [D_W-1:0] query_data_matrix [0:DIM-1][0:D_K-1];          //matrix:Q                                             calculate_matrix_2
-//wire [D_W-1:0] key_data_matrix [0:DIM-1][0:D_K-1];            //matrix:K                                                      |
-wire [D_W-1:0] key_data_matrix_transpose [0:D_K-1][0:DIM-1];    //matrix:K^T                                                    v
+logic [7:0] m_reg [0:1023];                                     //store mi                                             calculate_matrix_2
+logic [7:0] l_reg [0:1023];                                     //store li                                                      |
+logic [D_W-1:0] key_data_matrix_transpose [0:D_K-1][0:DIM-1];   //matrix:K^T                                                    v
 //wire [D_W-1:0] value_data_matrix [0:DIM-1][0:D_K-1];          //matrix:V                   
 //wire [D_W-1:0] calculate_matrix_1 [0:SA_R-1][0:D_K-1];        //matrix:input SA                     calculate_matrix_1 ->    SA (16 X 16)
 //wire [D_W-1:0] calculate_matrix_2 [0:D_K-1][0:SA_C-1];        //matrix:input SA
-wire [D_W-1:0] scale_matrix [0:SA_R-1][0:SA_C-1];               //matrix:scale(*1/sqrt(d_k))
+logic [D_W-1:0] scale_matrix [0:SA_R-1][0:SA_C-1];               //matrix:scale(*1/sqrt(d_k))
 
-wire [D_W-1:0]       softmax_out [0:D_K-1] ;
+logic [D_W-1:0] softmax_out [0:D_K-1] ;
 
-reg  [4:0]             sel_dim;
-reg                    softmax_start;
+logic [4:0]     sel_dim;
+logic           softmax_start;
 //////////////////////////////////////////////////////////////////////
 
 generate      //matrix transpose
@@ -215,6 +213,8 @@ safe_softmax#(
     .I_RST_N    (I_ASYN_RSTN  ),
     .I_START    (softmax_start),//keep when calculate
     .I_DATA     (O_MAT_1[sel_dim]),
+    .O_X_MAX    (),
+    .O_EXP_SUM  (),
     .O_VLD      (out_vld ),
     .O_DATA     (softmax_out)
 );

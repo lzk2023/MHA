@@ -23,6 +23,7 @@
 
 module SA_wrapper#(
     parameter D_W   = 8,  //Data_Width
+    parameter M_DIM = 16,
     parameter SA_R  = 16,  //SA_ROW,     SA.shape = (SA_R,SA_C)
     parameter SA_C  = 16   //SA_COLUMN
 ) (
@@ -30,8 +31,8 @@ module SA_wrapper#(
     input  logic           I_ASYN_RSTN                        ,
     input  logic           I_SYNC_RSTN                        ,
     input  logic           I_START_FLAG                       ,//                                               SA_C    
-    input  logic [D_W-1:0] I_X_MATRIX   [0:SA_R-1][0:127]     ,//input x(from left)        matrix x:     x|<-------------->|           //X_C == W_R == M_DIM,dimention of the 2 multiply matrix.
-    input  logic [D_W-1:0] I_W_MATRIX   [0:127][0:SA_C-1]     ,//input weight(from up)                   |
+    input  logic [D_W-1:0] I_X_MATRIX   [0:SA_R-1][0:M_DIM-1]     ,//input x(from left)        matrix x:     x|<-------------->|           //X_C == W_R == M_DIM,dimention of the 2 multiply matrix.
+    input  logic [D_W-1:0] I_W_MATRIX   [0:M_DIM-1][0:SA_C-1]     ,//input weight(from up)                   |
     output logic           O_OUT_VLD                          ,//                                   SA_R |
     output logic           O_PE_SHIFT                         ,//  OUT.shape = (X_R,SA_C)                |
     output logic [D_W-1:0] O_OUT        [0:SA_R-1][0:SA_C-1]   //                                        x
@@ -160,6 +161,7 @@ endgenerate
 
 SA_mat_manager#(
     .D_W  (D_W  ),
+    .M_DIM(M_DIM),
     .X_R  (SA_R ),
     .W_C  (SA_C )
 )u_dut_SA_mat_manager(
@@ -168,7 +170,6 @@ SA_mat_manager#(
     .I_SYNC_RSTN(I_SYNC_RSTN  ),
     .I_PE_SHIFT (O_PE_SHIFT   ),
     .I_START    (I_START_FLAG ),
-    .I_M_DIM    (8'd16),
     .I_X_MATRIX (I_X_MATRIX   ),
     .I_W_MATRIX (I_W_MATRIX   ),
     .O_OVER     (matshift_over),

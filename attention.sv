@@ -111,7 +111,7 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
             S_Q_K     :begin
                 if(I_SA_VLD)begin
                     state       <= S_CLEAR1   ;
-                    O_MAT_1     <= I_SA_RESULT;
+                    O_MAT_1[0:SA_R-1][0:SA_C-1]     <= I_SA_RESULT;
                     O_MAT_2     <= scale_matrix  ;
                     O_SA_CLEARN <= 0          ;//clear SA
                     O_SA_START  <= 0          ;
@@ -131,7 +131,7 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
             S_SCALE   :begin
                 if(I_SA_VLD)begin
                     state       <= S_CLEAR2   ;
-                    O_MAT_1     <= I_SA_RESULT;//S/sqrt(d_k)
+                    O_MAT_1[0:SA_R-1][0:SA_C-1]     <= I_SA_RESULT;//S/sqrt(d_k)
                     O_MAT_2     <= '{default:'b0}          ;
                     O_SA_CLEARN <= 0          ;//clear SA
                     O_SA_START  <= 0          ;
@@ -181,7 +181,7 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                     state       <= S_CLEAR4   ;
                     O_MAT_1     <= O_MAT_1    ;
                     O_MAT_2     <= O_MAT_2    ;
-                    O_ATT_DATA  <= I_SA_RESULT;
+                    O_ATT_DATA[0:SA_R-1][0:SA_C-1]  <= I_SA_RESULT;
                     O_SA_CLEARN <= 0          ;//clear SA
                     O_SA_START  <= 0          ;
                 end else begin

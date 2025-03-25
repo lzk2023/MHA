@@ -8,14 +8,14 @@ bit                I_ASYN_RSTN  ;
 bit                I_SYNC_RSTN  ;
 bit                I_ATTN_START ;
 
-bit [8-1:0] Q_MATRIX [0:16-1][0:16-1];
-bit [8-1:0] K_MATRIX [0:16-1][0:16-1];
-bit [8-1:0] V_MATRIX [0:16-1][0:16-1];
+bit [8-1:0] Q_MATRIX [0:16-1][0:128-1];
+bit [8-1:0] K_MATRIX [0:16-1][0:128-1];
+bit [8-1:0] V_MATRIX [0:16-1][0:128-1];
 
 logic                O_SA_START ;
 logic                O_SA_CLEARN;
-logic [7:0] O_MAT_1 [0:15][0:15]   ;
-logic [7:0] O_MAT_2 [0:15][0:15]   ;
+logic [7:0] O_MAT_1 [0:15][0:127]   ;
+logic [7:0] O_MAT_2 [0:127][0:15]   ;
 logic                O_DATA_VLD ;
 logic [7:0] O_ATT_DATA [0:15][0:15];
 logic                I_SA_VLD     ;

@@ -56,7 +56,8 @@ SA_wrapper#(
     .I_CLK          (I_CLK        ),
     .I_ASYN_RSTN    (I_ASYN_RSTN  ),
     .I_SYNC_RSTN    (O_SA_CLEARN  ),
-    .I_START_FLAG   (O_SA_START   ),//
+    .I_START_FLAG   (O_SA_START   ),
+    .I_M_DIM        (8'd16        ),//
     .I_X_MATRIX     (O_MAT_1      ),//input x(from left)     
     .I_W_MATRIX     (O_MAT_2      ),//input weight(from ddr)             
     .O_OUT_VLD      (I_SA_VLD     ),// 

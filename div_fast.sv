@@ -34,7 +34,7 @@ enum logic [1:0]{
 assign dividend_msb = I_DIVIDEND[D_W-1]  ;//被除数最高位
 generate
     if(USE_IN_SOFTMAX == 1)begin
-        assign dividend_pos = (dividend_msb ? (~I_DIVIDEND[D_W-2:0]+1):I_DIVIDEND[D_W-2:0]) << FRAC_BIT-2;//被除数绝对值 扩13-2位（小数位数量）
+        assign dividend_pos = (dividend_msb ? (~I_DIVIDEND[D_W-2:0]+1):I_DIVIDEND[D_W-2:0]) << FRAC_BIT-5;//被除数绝对值 扩13-5位（小数位数量）
     end else begin
         assign dividend_pos = (dividend_msb ? (~I_DIVIDEND[D_W-2:0]+1):I_DIVIDEND[D_W-2:0]) << FRAC_BIT;//被除数绝对值 扩13位（小数位数量）
     end

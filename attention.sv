@@ -40,8 +40,8 @@ enum logic [10:0] {
     S_O        = 11'b100_0000_0000 
 } state;
 
-logic [7:0] m_reg [0:1023];                                     //store mi                                             calculate_matrix_2
-logic [7:0] l_reg [0:1023];                                     //store li                                                      |
+logic [7:0]  m_reg [0:1023];                                     //store mi                                             calculate_matrix_2
+logic [15:0] l_reg [0:1023];                                     //store li                                                      |
 logic [D_W-1:0] key_data_matrix_transpose [0:D_K-1][0:DIM-1];   //matrix:K^T                                                    v
 //wire [D_W-1:0] value_data_matrix [0:DIM-1][0:D_K-1];          //matrix:V                   
 //wire [D_W-1:0] calculate_matrix_1 [0:SA_R-1][0:D_K-1];        //matrix:input SA                     calculate_matrix_1 ->    SA (16 X 16)
@@ -213,6 +213,8 @@ safe_softmax#(
     .I_RST_N    (I_ASYN_RSTN  ),
     .I_START    (softmax_start),//keep when calculate
     .I_DATA     (O_MAT_1[sel_dim]),
+    .I_X_MAX    (0),
+    .I_EXP_SUM  (0),
     .O_X_MAX    (),
     .O_EXP_SUM  (),
     .O_VLD      (out_vld ),

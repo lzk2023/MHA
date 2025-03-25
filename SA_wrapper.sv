@@ -29,7 +29,8 @@ module SA_wrapper#(
     input  logic           I_CLK                              ,
     input  logic           I_ASYN_RSTN                        ,
     input  logic           I_SYNC_RSTN                        ,
-    input  logic           I_START_FLAG                       ,//                                               SA_C    
+    input  logic           I_START_FLAG                       ,
+    input  logic [7:0]     I_M_DIM                            ,//max:128                                         SA_C    
     input  logic [D_W-1:0] I_X_MATRIX   [0:SA_R-1][0:127]     ,//input x(from left)        matrix x:     x|<-------------->|           //X_C == W_R == M_DIM,dimention of the 2 multiply matrix.
     input  logic [D_W-1:0] I_W_MATRIX   [0:127][0:SA_C-1]     ,//input weight(from up)                   |
     output logic           O_OUT_VLD                          ,//                                   SA_R |
@@ -168,7 +169,7 @@ SA_mat_manager#(
     .I_SYNC_RSTN(I_SYNC_RSTN  ),
     .I_PE_SHIFT (O_PE_SHIFT   ),
     .I_START    (I_START_FLAG ),
-    .I_M_DIM    (8'd16),
+    .I_M_DIM    (I_M_DIM      ),
     .I_X_MATRIX (I_X_MATRIX   ),
     .I_W_MATRIX (I_W_MATRIX   ),
     .O_OVER     (matshift_over),

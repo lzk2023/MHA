@@ -11,7 +11,7 @@ module tb_safe_softmax();
     real                out_data_real[16];
     real                out_data_compare[16];
 
-    integer div ;
+    integer div;
     integer i,j;
     
     task float_outdata();
@@ -36,12 +36,16 @@ module tb_safe_softmax();
     .D_W(D_W),
     .NUM(NUM) //dimention
     )u_dut_safe_softmax(
-    .I_CLK  (clk  ),
-    .I_RST_N(rst_n),
-    .I_START(start),//keep when calculate
-    .I_DATA (data ),
-    .O_VLD  (out_vld ),
-    .O_DATA (out_data)
+    .I_CLK    (clk  ),
+    .I_RST_N  (rst_n),
+    .I_START  (start),//keep when calculate
+    .I_DATA   (data ),
+    .I_X_MAX  (8'd0),
+    .I_EXP_SUM(16'd0),//0_0000000_0000_0000,1 signal bit,7int bit,8frac bit
+    .O_X_MAX  (),
+    .O_EXP_SUM(),
+    .O_VLD    (out_vld ),
+    .O_DATA   (out_data)
     );
     always #5 clk = ~clk;
     initial begin

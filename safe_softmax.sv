@@ -7,8 +7,10 @@ module safe_softmax#(                        //safe_softmax
     input  logic           I_RST_N          ,
     input  logic           I_START          ,//keep when calculate
     input  logic [D_W-1:0] I_DATA [0:NUM-1] ,
-    output logic [7:0]     O_X_MAX          ,
-    output logic [17:0]    O_EXP_SUM        ,
+    input  logic [D_W-1:0] I_X_MAX          ,
+    input  logic [15:0]    I_EXP_SUM        ,
+    output logic [D_W-1:0] O_X_MAX          ,
+    output logic [15:0]    O_EXP_SUM        ,
     output logic           O_VLD            ,
     output logic [D_W-1:0] O_DATA [0:NUM-1]
 );
@@ -20,10 +22,11 @@ enum logic [3:0] {
     S_END  = 4'b1000 
 } state;
 
+logic [7:0]  sel_16_max;
 logic [7:0]  data_x_max;
 logic [15:0] data_e_x [0:NUM-1];
 logic [15:0] data_e_x_ff [0:NUM-1];
-logic [17:0] data_e_x_ff_sum;//extend 2 bits,2^4 = 16
+logic [20:0] data_e_x_ff_sum;//extend 5 bits,2^7 = 128
 logic [15:0] quotient [0:NUM-1];
 //reg  [D_W-1+2:0] data_sum;//data_max extend
 logic  [15:0] data_sum;
@@ -33,14 +36,16 @@ logic         div_vld_all;
 logic         div_start;
 
 assign O_X_MAX = data_x_max;
-assign O_EXP_SUM = data_e_x_ff_sum;
+assign O_EXP_SUM = data_e_x_ff_sum[20:5];
 
 sel_max#(
     .D_W(8)
 )u_sel_max(
     .I_DATA(I_DATA),
-    .O_MAX (data_x_max)
+    .O_MAX (sel_16_max)
 );
+
+assign data_x_max = ($signed(sel_16_max) > $signed(I_X_MAX)) ? sel_16_max : I_X_MAX;
 
 integer j;
 integer k;
@@ -99,7 +104,7 @@ endgenerate
 assign div_vld_all = & div_vld;
 
 always_comb begin
-    data_e_x_ff_sum = 0;
+    data_e_x_ff_sum = {I_EXP_SUM,5'b0};
     for(j=0;j<NUM;j=j+1)begin
         data_e_x_ff_sum = data_e_x_ff_sum + data_e_x_ff[j];//opt timing
     end
@@ -137,7 +142,7 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
                         state <= S_DIV;
                         div_start <= 1;
                         add_div_cnt <= 0;
-                        data_sum <= data_e_x_ff_sum[17:2];
+                        data_sum <= data_e_x_ff_sum[20:5];
                     end
                 end else begin
                     state <= S_IDLE;

@@ -23,7 +23,7 @@ module attention#(
     output logic [D_W-1:0] O_MAT_1     [0:SA_R-1][0:127]    ,//to SA_wrapper
     output logic [D_W-1:0] O_MAT_2     [0:127][0:SA_C-1]    ,//to SA_wrapper
     output logic           O_DATA_VLD                       ,
-    output logic [D_W-1:0] O_ATT_DATA  [0:DIM-1][0:D_K-1]    
+    output logic [D_W-1:0] O_ATT_DATA  [0:DIM-1][0:15]    
 );
 localparam S_DK_VALUE = 8'd3;//0.08838*32,1/(sqrt(dk=128))
 enum logic [10:0] {
@@ -111,8 +111,12 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
             S_Q_K     :begin
                 if(I_SA_VLD)begin
                     state       <= S_CLEAR1   ;
-                    O_MAT_1[0:SA_R-1][0:SA_C-1]     <= I_SA_RESULT;
-                    O_MAT_2     <= scale_matrix  ;
+                    for(int i=0;i<SA_R;i=i+1)begin
+                        O_MAT_1[i][0:SA_C-1] <= I_SA_RESULT[i];//O_MAT_1[0:SA_R-1][0:SA_C-1]     <= I_SA_RESULT;
+                    end
+                    for(int j=0;j<SA_R;j=j+1)begin
+                        O_MAT_2[j][0:SA_C-1] <= scale_matrix[j];//O_MAT_2[0:SA_R-1][0:SA_C-1]     <= scale_matrix  ;
+                    end
                     O_SA_CLEARN <= 0          ;//clear SA
                     O_SA_START  <= 0          ;
                 end else begin
@@ -131,7 +135,9 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
             S_SCALE   :begin
                 if(I_SA_VLD)begin
                     state       <= S_CLEAR2   ;
-                    O_MAT_1[0:SA_R-1][0:SA_C-1]     <= I_SA_RESULT;//S/sqrt(d_k)
+                    for(int k=0;k<SA_R;k=k+1)begin
+                        O_MAT_1[k][0:SA_C-1] <=I_SA_RESULT[k];//O_MAT_1[0:SA_R-1][0:SA_C-1]     <= I_SA_RESULT;//S/sqrt(d_k)
+                    end
                     O_MAT_2     <= '{default:'b0}          ;
                     O_SA_CLEARN <= 0          ;//clear SA
                     O_SA_START  <= 0          ;
@@ -152,8 +158,8 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
             S_SOFTMAX :begin
                 if(sel_dim == 5'd16)begin
                     state       <= S_CLEAR3   ;
-                    O_MAT_1     <= O_MAT_1    ;
-                    O_MAT_2     <= I_MAT_V    ;
+                    O_MAT_1     <= I_MAT_V    ;
+                    O_MAT_2     <= O_MAT_2    ;
                     O_SA_CLEARN <= 0          ;//clear SA
                     O_SA_START  <= 0          ;
                 end else begin
@@ -162,10 +168,10 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                     O_SA_CLEARN   <= 1        ;//clear SA
                     O_SA_START    <= 0        ;
                     if(out_vld)begin
-                        O_MAT_1[sel_dim] <= softmax_out ;
+                        O_MAT_2[sel_dim][0:SA_C-1] <= softmax_out ;
                         sel_dim     <= sel_dim + 1;
                     end else begin
-                        O_MAT_1     <= O_MAT_1    ;
+                        O_MAT_2     <= O_MAT_2    ;
                         sel_dim     <= sel_dim    ;
                     end
                 end
@@ -181,7 +187,9 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                     state       <= S_CLEAR4   ;
                     O_MAT_1     <= O_MAT_1    ;
                     O_MAT_2     <= O_MAT_2    ;
-                    O_ATT_DATA[0:SA_R-1][0:SA_C-1]  <= I_SA_RESULT;
+                    for(int l=0;l<SA_R;l=l+1)begin
+                        O_ATT_DATA[l][0:SA_C-1]  <= I_SA_RESULT[l];//O_ATT_DATA[0:SA_R-1][0:SA_C-1]  <= I_SA_RESULT;
+                    end
                     O_SA_CLEARN <= 0          ;//clear SA
                     O_SA_START  <= 0          ;
                 end else begin
@@ -207,12 +215,12 @@ end
 
 safe_softmax#(  
     .D_W(D_W),
-    .NUM(D_K) //dimention
+    .NUM(16) //dimention
 )u_softmax_for_attn(
     .I_CLK      (I_CLK        ),
     .I_RST_N    (I_ASYN_RSTN  ),
     .I_START    (softmax_start),//keep when calculate
-    .I_DATA     (O_MAT_1[sel_dim]),
+    .I_DATA     (O_MAT_1[sel_dim][0:SA_C-1]),
     .I_X_MAX    (0),
     .I_EXP_SUM  (0),
     .O_X_MAX    (),

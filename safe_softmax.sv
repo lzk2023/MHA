@@ -122,7 +122,8 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
     end else begin
         case(state)
             S_IDLE :begin
-                data_sum <= 0;
+                div_start <= 0;
+                data_sum  <= 0;
                 data_e_x_ff <= '{default:'b0};
                 add_div_cnt  <= 0;
                 O_VLD       <= 0;

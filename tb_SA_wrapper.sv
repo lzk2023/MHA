@@ -9,7 +9,6 @@ localparam SA_C   = 16;
 
 bit                     I_CLK        ;
 bit                     I_ASYN_RSTN  ;
-bit                     I_SYNC_RSTN  ;
 bit                     I_START_FLAG ;
   
 //logic                        O_MATRIX_OVER;//
@@ -43,8 +42,8 @@ SA_wrapper#(
 ) u_dut_SA_top(
     .I_CLK          (I_CLK        ),
     .I_ASYN_RSTN    (I_ASYN_RSTN  ),
-    .I_SYNC_RSTN    (I_SYNC_RSTN  ),
     .I_START_FLAG   (I_START_FLAG ),//
+    .I_M_DIM        (8'd16),
     .I_X_MATRIX     (X_MATRIX     ),//input x(from left)     
     .I_W_MATRIX     (W_MATRIX     ),//input weight(from ddr)             
     .O_OUT_VLD      (O_OUT_VLD    ),// 
@@ -67,7 +66,6 @@ always #5 I_CLK = ~I_CLK;
 initial begin
     #100
     I_ASYN_RSTN  = 1;
-    I_SYNC_RSTN  = 1;
     I_START_FLAG = 1;
     for(int i=0;i<16;i=i+1)begin
         X_MATRIX[i][0:15] = '{8'h00,8'h01,8'h02,8'h03,8'h04,8'h05,8'h06,8'h07,8'h08,8'h09,8'h0a,8'h0b,8'h0c,8'h0d,8'h0e,8'h0f};
@@ -81,13 +79,9 @@ initial begin
 
 
 
-    I_SYNC_RSTN  = 0;
+    I_START_FLAG  = 1;
     #10
-    I_SYNC_RSTN  = 1;
-    #100
-    I_START_FLAG = 1;
-    #10
-    I_START_FLAG = 0;
+    I_START_FLAG  = 0;
     #1000
     $finish;
 end

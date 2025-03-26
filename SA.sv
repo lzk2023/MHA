@@ -29,20 +29,14 @@ module SA #(
 (
     input  logic           I_CLK                              ,
     input  logic           I_ASYN_RSTN                        ,
-    input  logic           I_SYNC_RSTN                        ,
     input  logic           I_START_FLAG                       ,
+    input  logic           I_END_FLAG                         ,
     input  logic [D_W-1:0] I_X          [0:SA_R-1]            ,//input x(from left)
     input  logic [D_W-1:0] I_W          [0:SA_C-1]            ,//input weight(from up)
     output logic           O_SHIFT                            ,//PE shift,O_SHIFT <= 1
     output logic [D_W-1:0] O_OUT        [0:SA_R-1][0:SA_C-1]   //output data,
 );
 
-typedef enum logic{
-    S_IDLE = 1'b0,
-    S_CAL  = 1'b1
-} state_type;
-
-state_type state;
 
 logic                         x_vld     ;
 logic [D_W-1:0] w_io_matrix [0:SA_R-1] [0:SA_C-1];
@@ -52,33 +46,14 @@ logic                        pe00_vld  ;
 
 assign O_SHIFT = pe00_vld;
 
-always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
-    if(!I_ASYN_RSTN | !I_SYNC_RSTN)begin
-        state     <= S_IDLE;
-    end else begin
-        case(state)
-            S_IDLE:begin
-                if(I_START_FLAG)begin
-                    state <= S_CAL;
-                end else begin
-                    state <= state;
-                end
-            end
-            S_CAL :begin
-                state <= state; 
-            end
-        endcase
-    end
-end
-
 always_ff@(posedge I_CLK or negedge I_ASYN_RSTN) begin
-    if(!I_ASYN_RSTN | !I_SYNC_RSTN)begin
+    if(!I_ASYN_RSTN | I_START_FLAG)begin
         x_vld <= 0;
     end else begin
-        if(state == S_CAL)begin
-            x_vld <= 1;
-        end else begin
+        if(I_END_FLAG)begin
             x_vld <= 0;
+        end else begin
+            x_vld <= 1;
         end
     end
 end
@@ -94,7 +69,7 @@ generate                                                //SA_R(i)|             S
                 )u_PE(
                     .I_CLK      (I_CLK  ),
                     .I_ASYN_RSTN(I_ASYN_RSTN),
-                    .I_SYNC_RSTN(I_SYNC_RSTN),
+                    .I_SYNC_RSTN(!I_START_FLAG),
                     .I_VLD      (x_vld),
                     .I_X        (I_X[0]),//input x(from left)
                     .I_W        (I_W[0]),//input weight(from up)
@@ -110,7 +85,7 @@ generate                                                //SA_R(i)|             S
                 )u_PE(
                     .I_CLK      (I_CLK  ),
                     .I_ASYN_RSTN(I_ASYN_RSTN),
-                    .I_SYNC_RSTN(I_SYNC_RSTN),
+                    .I_SYNC_RSTN(!I_START_FLAG),
                     .I_VLD      (x_vld),
                     .I_X        (I_X[i]),//input x(from left)
                     .I_W        (w_io_matrix[i-1][0]),//input weight(from up)
@@ -125,7 +100,7 @@ generate                                                //SA_R(i)|             S
                 ) u_PE(
                     .I_CLK      (I_CLK  ),
                     .I_ASYN_RSTN(I_ASYN_RSTN),
-                    .I_SYNC_RSTN(I_SYNC_RSTN),
+                    .I_SYNC_RSTN(!I_START_FLAG),
                     .I_VLD      (x_vld),
                     .I_X        (x_io_matrix[0][j-1]),//input x(from left)
                     .I_W        (I_W[j]),//input weight(from up)
@@ -140,7 +115,7 @@ generate                                                //SA_R(i)|             S
                 )u_PE(
                     .I_CLK      (I_CLK  ),
                     .I_ASYN_RSTN(I_ASYN_RSTN),
-                    .I_SYNC_RSTN(I_SYNC_RSTN),
+                    .I_SYNC_RSTN(!I_START_FLAG),
                     .I_VLD      (x_vld),
                     .I_X        (x_io_matrix[i][j-1]),//input x(from left)
                     .I_W        (w_io_matrix[i-1][j]),//input weight(from up)

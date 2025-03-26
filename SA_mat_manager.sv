@@ -11,7 +11,6 @@ module SA_mat_manager#(
 )(
     input  logic           I_CLK                      ,
     input  logic           I_ASYN_RSTN                ,
-    input  logic           I_SYNC_RSTN                ,
     input  logic           I_PE_SHIFT                 ,
     input  logic           I_START                    ,
     input  logic [7:0]     I_M_DIM                    ,//max:128
@@ -23,10 +22,6 @@ module SA_mat_manager#(
 );
 
 logic  [15:0] sel  ;
-enum logic [1:0]  {
-    S_IDLE  = 2'b01,
-    S_COUNT = 2'b10
-}state;
 
 ///////////////////////////select matrix out/////////////////////////
 generate 
@@ -42,35 +37,18 @@ generate
 endgenerate
 
 always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
-    if(!I_ASYN_RSTN | !I_SYNC_RSTN)begin
+    if(!I_ASYN_RSTN | I_START)begin
         sel   <= 'b0;
-        state <= S_IDLE;
     end else begin
-        case(state)
-            S_IDLE :begin
-                if(I_START)begin
-                    sel   <= 'b0;
-                    state <= S_COUNT;
-                end else begin
-                    sel   <= sel;
-                    state <= state;
-                end
+        if(I_PE_SHIFT)begin
+            if(sel<I_M_DIM)begin
+                sel   <= sel + 1;
+            end else begin
+                sel   <= sel;
             end
-            S_COUNT:begin
-                if(I_PE_SHIFT)begin
-                    if(sel<I_M_DIM)begin
-                        sel   <= sel + 1;
-                        state <= state;
-                    end else begin
-                        sel   <= sel;
-                        state <= S_IDLE;
-                    end
-                end else begin
-                    sel   <= sel;
-                    state <= state;
-                end
-            end
-        endcase
+        end else begin
+            sel   <= sel;
+        end
     end
 end
 

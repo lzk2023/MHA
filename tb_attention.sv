@@ -15,6 +15,7 @@ bit [8-1:0] V_MATRIX [0:16-1][0:128-1];
 logic                O_SA_START ;
 logic [7:0] O_MAT_1 [0:15][0:127]   ;
 logic [7:0] O_MAT_2 [0:127][0:15]   ;
+logic [7:0] O_M_DIM ;
 logic                O_DATA_VLD ;
 logic [7:0] O_ATT_DATA [0:15][0:127];
 logic                I_SA_VLD     ;
@@ -25,7 +26,6 @@ attention#(
     .D_W   (8 ),
     .SA_R  (16),
     .SA_C  (16),
-    .M_DIM (16),       //to SA_wrapper
     .DIM   (16),       //sequence length
     .D_K   (128)        //Q,K,V column num（dimention/h_num)
 )u_dut_attention(
@@ -42,6 +42,7 @@ attention#(
     .O_SA_START     (O_SA_START   ),//to SA_wrapper
     .O_MAT_1        (O_MAT_1      ),//to SA_wrapper
     .O_MAT_2        (O_MAT_2      ),//to SA_wrapper
+    .O_M_DIM        (O_M_DIM      ),//to SA_wrapper
     .O_DATA_VLD     (O_DATA_VLD   ),
     .O_ATT_DATA     (O_ATT_DATA   )
 );
@@ -54,7 +55,7 @@ SA_wrapper#(
     .I_CLK          (I_CLK        ),
     .I_ASYN_RSTN    (I_ASYN_RSTN  ),
     .I_START_FLAG   (O_SA_START   ),
-    .I_M_DIM        (8'd16        ),//
+    .I_M_DIM        (O_M_DIM      ),//
     .I_X_MATRIX     (O_MAT_1      ),//input x(from left)     
     .I_W_MATRIX     (O_MAT_2      ),//input weight(from ddr)             
     .O_OUT_VLD      (I_SA_VLD     ),// 
@@ -71,19 +72,23 @@ initial begin
     I_ASYN_RSTN  = 1;
     I_ATTN_START = 1;
     for(int i=0;i<16;i=i+1)begin
-        Q_MATRIX[i][0:15] = '{8'h00,8'h01,8'h02,8'h03,8'h04,8'h05,8'h06,8'h07,8'h08,8'h09,8'h0a,8'h0b,8'h0c,8'h0d,8'h0e,8'h0f};
+        for(int i_1=0;i_1<8;i_1=i_1+1)begin
+            Q_MATRIX[i][i_1*16 +: 16] = '{8'h02,8'h01,8'h02,8'h03,8'h04,8'h05,8'h06,8'h07,8'h08,8'h09,8'h0a,8'h0b,8'h0c,8'h0d,8'h0e,8'h0f};
+        end
     end
     for(int j=0;j<16;j=j+1)begin
-        K_MATRIX[j][0:15] = '{8'h00,8'h01,8'h02,8'h03,8'h04,8'h05,8'h06,8'h07,8'h08,8'h09,8'h0a,8'h0b,8'h0c,8'h0d,8'h0e,8'h0f};
+        for(int j_1=0;j_1<8;j_1=j_1+1)begin
+            K_MATRIX[j][j_1*16 +: 16] = '{8'h02,8'h01,8'h02,8'h03,8'h04,8'h05,8'h06,8'h07,8'h08,8'h09,8'h0a,8'h0b,8'h0c,8'h0d,8'h0e,8'h0f};
+        end
     end
     for(int k=0;k<16;k=k+1)begin
         for(int x=0;x<8;x=x+1)begin
-            V_MATRIX[k][x*16 +: 16] = '{8'h00,8'h01,8'h02,8'h03,8'h04,8'h05,8'h06,8'h07,8'h08,8'h09,8'h0a,8'h0b,8'h0c,8'h0d,8'h0e,8'h0f};
+            V_MATRIX[k][x*16 +: 16] = '{8'h02,8'h01,8'h02,8'h03,8'h04,8'h05,8'h06,8'h07,8'h08,8'h09,8'h0a,8'h0b,8'h0c,8'h0d,8'h0e,8'h0f};
         end
     end
     #10
     I_ATTN_START = 0;
-    #10000
+    #12000
     $finish;
 end
 endmodule

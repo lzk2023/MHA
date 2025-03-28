@@ -26,13 +26,13 @@ logic  [15:0] sel  ;
 ///////////////////////////select matrix out/////////////////////////
 generate 
     for(genvar i=0;i<X_R;i=i+1)begin
-        assign O_X_VECTOR[i] = (sel == I_M_DIM) ? 0 : I_X_MATRIX[i][I_M_DIM-1-sel];
+        assign O_X_VECTOR[i] = (sel >= I_M_DIM) ? 0 : I_X_MATRIX[i][I_M_DIM-1-sel];
     end
 endgenerate
 
 generate 
     for(genvar i=0;i<W_C;i=i+1)begin
-        assign O_W_VECTOR[i] = (sel == I_M_DIM) ? 0 : I_W_MATRIX[I_M_DIM-1-sel][i];
+        assign O_W_VECTOR[i] = (sel >= I_M_DIM) ? 0 : I_W_MATRIX[I_M_DIM-1-sel][i];
     end
 endgenerate
 
@@ -52,5 +52,16 @@ always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
     end
 end
 
-assign O_OVER = (sel == I_M_DIM) ? 1 : 0;
+//assign O_OVER = (sel == I_M_DIM) ? 1 : 0;
+always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
+    if(!I_ASYN_RSTN | I_START)begin
+        O_OVER <= 0;
+    end else begin
+        if(sel == I_M_DIM)begin
+            O_OVER <= 1;
+        end else begin
+            O_OVER <= 0;
+        end
+    end
+end
 endmodule

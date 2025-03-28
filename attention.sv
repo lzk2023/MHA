@@ -21,6 +21,7 @@ module attention#(
     output logic           O_SA_START                       ,//to SA_wrapper
     output logic [D_W-1:0] O_MAT_1     [0:SA_R-1][0:127]    ,//to SA_wrapper
     output logic [D_W-1:0] O_MAT_2     [0:127][0:SA_C-1]    ,//to SA_wrapper
+    output logic [7:0]     O_M_DIM                          ,//to SA_wrapper
     output logic           O_DATA_VLD                       ,
     output logic [D_W-1:0] O_ATT_DATA  [0:DIM-1][0:D_K-1]    
 );
@@ -79,6 +80,7 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
         state         <= S_IDLE        ;
         O_MAT_1       <= '{default:'b0};
         O_MAT_2       <= '{default:'b0};
+        O_M_DIM       <= 8'd128        ;
         O_SA_START    <= 0             ;
         softmax_start <= 0             ;
         sel_dim       <= 0             ;
@@ -102,6 +104,7 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
             S_CLEAR0  :begin
                 state       <= S_Q_K  ;
                 O_SA_START  <= 1      ;
+                O_M_DIM     <= 8'd128 ;
             end
             S_Q_K     :begin
                 if(I_SA_VLD)begin
@@ -123,6 +126,7 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
             S_CLEAR1  :begin
                 state       <= S_SCALE;
                 O_SA_START  <= 1      ;
+                O_M_DIM     <= 8'd16  ;
             end
             S_SCALE   :begin
                 if(I_SA_VLD)begin
@@ -142,6 +146,7 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
             S_CLEAR2  :begin
                 state         <= S_SOFTMAX;
                 O_SA_START    <= 0        ;
+                //O_M_DIM       <= 0        ;
                 softmax_start <= 1        ;
             end
             S_SOFTMAX :begin
@@ -169,6 +174,7 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
             S_CLEAR3  :begin
                 state       <= S_P_V    ;
                 O_SA_START  <= 1        ;
+                O_M_DIM     <= 8'd16    ;
                 softmax_start <= 0      ;
             end
             S_P_V     :begin
@@ -198,6 +204,7 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
             S_CLEAR4  :begin
                 state       <= S_O      ;
                 O_SA_START  <= 0        ;
+                //O_M_DIM     <= 0        ;
             end
             S_O       :begin
                 state      <= state;

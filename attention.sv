@@ -12,40 +12,40 @@ module attention#(
     input  logic           I_SYNC_RSTN                      ,
     input  logic           I_ATTN_START                     ,
     input  logic           I_PE_SHIFT                       ,//connect to SA_wrapper O_PE_SHIFT
-    input  logic [D_W-1:0] I_MAT_Q     [0:DIM-1][0:D_K-1]   ,
-    input  logic [D_W-1:0] I_MAT_K     [0:DIM-1][0:D_K-1]   ,
-    input  logic [D_W-1:0] I_MAT_V     [0:DIM-1][0:D_K-1]   ,
-    input  logic [D_W-1:0] I_MAT_O     [0:DIM-1][0:D_K-1]   ,
+    input  logic [D_W-1:0] I_MAT_Q     [0:DIM-1][0:D_K-1]   ,//load tiling Q
+    input  logic [D_W-1:0] I_MAT_K     [0:DIM-1][0:D_K-1]   ,//load tiling K
+    input  logic [D_W-1:0] I_MAT_V     [0:DIM-1][0:D_K-1]   ,//load tiling V
+    input  logic [D_W-1:0] I_MAT_O     [0:DIM-1][0:D_K-1]   ,//load tiling O'
     input  logic           I_SA_VLD                         ,//valid from SA
-    input  logic [D_W-1:0] I_SA_RESULT [0:SA_R-1][0:SA_C-1] ,//16*16*D_W,from SA
+    input  logic [D_W-1:0] I_SA_RESULT [0:SA_R-1][0:SA_C-1] ,//16*16,from SA
     output logic           O_SA_START                       ,//to SA_wrapper
     output logic [D_W-1:0] O_MAT_1     [0:SA_R-1][0:127]    ,//to SA_wrapper
     output logic [D_W-1:0] O_MAT_2     [0:127][0:SA_C-1]    ,//to SA_wrapper
     output logic [7:0]     O_M_DIM                          ,//to SA_wrapper
     output logic           O_DATA_VLD                       ,
-    output logic [D_W-1:0] O_ATT_DATA  [0:DIM-1][0:D_K-1]    
+    output logic [D_W-1:0] O_ATT_DATA  [0:DIM-1][0:D_K-1]    //output O'
 );
 localparam S_DK_VALUE = 8'd3;//0.08838*32,1/(sqrt(dk=128))
-enum logic [10:0] {
-    S_IDLE     = 11'b000_0000_0001,
-    S_CLEAR0   = 11'b000_0000_0010,
-    S_Q_K      = 11'b000_0000_0100,      //S = Q*K^T
-    S_CLEAR1   = 11'b000_0000_1000,
-    S_SCALE    = 11'b000_0001_0000,      //S/d_k
-    S_CLEAR2   = 11'b000_0010_0000,
-    S_SOFTMAX  = 11'b000_0100_0000,      //P = softmax(S/d_k)
-    S_CLEAR3   = 11'b000_1000_0000,
-    S_P_V      = 11'b001_0000_0000,      //O = P*V
-    S_CLEAR4   = 11'b010_0000_0000,
-    S_O        = 11'b100_0000_0000 
+enum logic [3:0] {
+    S_IDLE     = 4'b0000,
+    S_CLEAR0   = 4'b0001,
+    S_Q_K      = 4'b0011,      //S = Q*K^T
+    S_CLEAR1   = 4'b0010,
+    S_SCALE    = 4'b0110,      //S/d_k
+    S_CLEAR2   = 4'b0111,
+    S_SOFTMAX  = 4'b0101,      //P = softmax(S/d_k)
+    S_CLEAR3   = 4'b0100,
+    S_P_V      = 4'b1100,      //O = P*V
+    S_CLEAR4   = 4'b1101,
+    S_O        = 4'b1111 
 } state;
 
-logic [7:0]  i_softmax_m;
-logic [7:0]  o_softmax_m;
+logic [7:0]  i_softmax_m;//old mi
+logic [7:0]  o_softmax_m;//new mi
 assign i_softmax_m = 0;
 assign i_softmax_l = 0;
-logic [15:0] i_softmax_l;
-logic [15:0] o_softmax_l;
+logic [15:0] i_softmax_l;//old li
+logic [15:0] o_softmax_l;//new li
 logic [7:0]  m_reg [0:1023];                                    //store mi                                             calculate_matrix_2
 logic [15:0] l_reg [0:1023];                                    //store li                                                      |
 logic [D_W-1:0] key_data_matrix_transpose [0:D_K-1][0:DIM-1];   //matrix:K^T                                                    v

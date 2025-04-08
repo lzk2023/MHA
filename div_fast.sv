@@ -55,7 +55,7 @@ always_comb begin
     for(i=0;i<7;i=i+1)begin   //orginal: i<D_W-1+FRAC_BIT
         temp_dividend = {temp_dividend,1'b0};
         if(temp_dividend >= temp_divisor)begin
-            temp_dividend = temp_dividend - temp_divisor + 1'b1;
+            temp_dividend = temp_dividend - temp_divisor + 1'b1;//temp_dividend == {dividend_shift,quotient}
         end else begin
             temp_dividend = temp_dividend;
         end

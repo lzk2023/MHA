@@ -43,7 +43,7 @@ generate
             .I_IN2     (8'd46    ),//1.442695040889*2^5//
             .O_MUL_OUT (mul_out  )
         );
-        assign uivi = {mul_out[15],mul_out[12:5]};//[16:0]expand 1 bit
+        assign uivi = mul_out[4] ? ({mul_out[15],mul_out[12:5]} + 1) : {mul_out[15],mul_out[12:5]};//[16:0]expand 1 bit
         assign uivi_ab = (uivi_msb) ? ~uivi[7:0] + 1'b1 : uivi[7:0];
         assign uivi_msb = uivi[8];
         assign ui = uivi_ab[7:5];
@@ -90,7 +90,7 @@ generate
             .I_IN2     (16'd11819),//1.442695040889*2^13//
             .O_MUL_OUT (mul_out  )
         );
-        assign uivi = {mul_out[31],mul_out[28:13]};//[16:0]expand 1 bit
+        assign uivi = mul_out[12] ? ({mul_out[31],mul_out[28:13]} + 1) : {mul_out[31],mul_out[28:13]};//[16:0]expand 1 bit
         assign uivi_ab = (uivi_msb) ? ~uivi[15:0] + 1'b1 : uivi[15:0];
         assign uivi_msb = uivi[16];
         assign ui = uivi_ab[15:13];

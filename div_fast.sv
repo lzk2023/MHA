@@ -46,7 +46,7 @@ assign quotient = temp_dividend[D_W-2+FRAC_BIT:0];
 assign quotient_msb = dividend_msb ^ divisor_msb;
 assign quotient_full[D_W-2+FRAC_BIT:0] = (I_DIVIDEND==0) ? 0 : (quotient_msb ? ~quotient + 1 : quotient);
 assign quotient_full[D_W-1+FRAC_BIT] = (I_DIVIDEND==0) ? 0 : quotient_msb;
-assign O_QUOTIENT = {quotient_full[D_W-1+FRAC_BIT],quotient_full[D_W-2:0]};
+assign O_QUOTIENT = {quotient_full[D_W-1+FRAC_BIT],quotient_full[D_W-2+(13-FRAC_BIT):(13-FRAC_BIT)]};//eg:16'0_0000000_00000000,quotient = {[28],[19:5]}
 
 integer i;
 always_comb begin

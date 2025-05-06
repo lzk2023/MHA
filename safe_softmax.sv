@@ -8,9 +8,9 @@ module safe_softmax#(                        //safe_softmax
     input  logic           I_START          ,//keep when calculate
     input  logic [D_W-1:0] I_DATA [0:NUM-1] ,
     input  logic [D_W-1:0] I_X_MAX          ,
-    input  logic [15:0]    I_EXP_SUM        ,
+    input  logic [15:0]    I_EXP_SUM        ,//data:0_000_0000_0000_0000
     output logic [D_W-1:0] O_X_MAX          ,
-    output logic [15:0]    O_EXP_SUM        ,
+    output logic [15:0]    O_EXP_SUM        ,//data:0_000_0000_0000_0000
     output logic           O_VLD            ,
     output logic [D_W-1:0] O_DATA [0:NUM-1]
 );

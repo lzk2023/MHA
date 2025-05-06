@@ -5,7 +5,7 @@ module o_matrix_upd#(
 )(
     input  logic             I_CLK                  ,
     input  logic             I_RST_N                ,
-    input  logic             I_VLD                  ,//keep
+    input  logic             I_ENA                  ,//keep
     input  logic [D_W*2-1:0] I_LI_OLD [0:TIL-1]     ,
     input  logic [D_W-1:0]   I_MI_OLD [0:TIL-1]     ,
     input  logic [D_W*2-1:0] I_LI_NEW [0:TIL-1]     ,
@@ -35,7 +35,7 @@ generate
         )u_fast_divider_16bit(
             .I_CLK      (I_CLK    ),
             .I_RST_N    (I_RST_N  ),
-            .I_DIV_START(I_VLD    ),//开始标志,计算时应保持
+            .I_DIV_START(I_ENA    ),//开始标志,计算时应保持
             .I_DIVIDEND (I_LI_OLD[i]),
             .I_DIVISOR  (I_LI_NEW[i]),
             .O_QUOTIENT (quotient[i]),

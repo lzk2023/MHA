@@ -3,8 +3,8 @@
 module bram_manager(
     input  logic       I_CLK              , 
     input  logic       I_RST_N            , 
-    input  logic       I_RD_ENA_PULSE     ,
-    input  logic       I_WR_ENA_PULSE     ,
+    input  logic       I_RD_ENA           ,
+    input  logic       I_WR_ENA           ,
     input  logic [7:0] I_SEL              ,//sel,addr:{[2:0],[5:0]} high_addr to choose Q,K,V,low_addr to choose line
     input  logic [7:0] I_MAT [0:15][0:127],
     output logic       O_VLD              ,
@@ -69,13 +69,13 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
     end else begin
         case(state)
             S_IDLE   :begin
-                if(I_WR_ENA_PULSE)begin
+                if(I_WR_ENA & !O_WR_DONE)begin
                     state <= S_WR_CONC;
                     ena <= 1;
                     wea <= 1;
                     sel <= 0;
                     O_WR_DONE <= 0;
-                end else if(I_RD_ENA_PULSE)begin
+                end else if(I_RD_ENA & !O_VLD)begin
                     state <= S_DELAY;
                     delay_ff <= 0;
                     ena <= 1;
@@ -84,123 +84,50 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
                     O_VLD <= 0;
                 end else begin
                     state <= state;
+                    O_VLD <= 0;
+                    O_WR_DONE <= 0;
                 end
             end
             S_DELAY  :begin
-                if(I_WR_ENA_PULSE)begin
-                    state <= S_WR_CONC;
-                    ena <= 1;
-                    wea <= 1;
-                    sel <= 0;
-                    O_WR_DONE <= 0;
-                end else if(I_RD_ENA_PULSE)begin
-                    state <= S_DELAY;
-                    delay_ff <= 0;
-                    ena <= 1;
-                    wea <= 0;
-                    sel <= 0;
-                    O_VLD <= 0;
+                if(delay_ff == 0)begin
+                    delay_ff <= 1;
+                    sel <= sel + 1;
+                    state <= state;
                 end else begin
-                    if(delay_ff == 0)begin
-                        delay_ff <= 1;
-                        sel <= sel + 1;
-                        state <= state;
-                    end else begin
-                        sel <= sel + 1;
-                        state <= S_CONCAT0;
-                    end
+                    sel <= sel + 1;
+                    state <= S_CONCAT0;
                 end
             end
             S_CONCAT0:begin
-                if(I_WR_ENA_PULSE)begin
-                    state <= S_WR_CONC;
-                    ena <= 1;
-                    wea <= 1;
-                    sel <= 0;
-                    O_WR_DONE <= 0;
-                end else if(I_RD_ENA_PULSE)begin
-                    state <= S_DELAY;
-                    delay_ff <= 0;
-                    ena <= 1;
-                    wea <= 0;
-                    sel <= 0;
-                    O_VLD <= 0;
-                end else begin
-                    if(sel < 2'b11)begin
-                        sel <= sel + 1;
-                        state <= state;
-                        O_MAT[0:3] <= dout_mat;
-                    end else begin//sel == 3
-                        state <= S_CONCAT1;
-                        O_MAT[4:7] <= dout_mat;
-                    end
+                if(sel < 2'b11)begin
+                    sel <= sel + 1;
+                    state <= state;
+                    O_MAT[0:3] <= dout_mat;
+                end else begin//sel == 3
+                    state <= S_CONCAT1;
+                    O_MAT[4:7] <= dout_mat;
                 end
             end
             S_CONCAT1:begin
-                if(I_WR_ENA_PULSE)begin
-                    state <= S_WR_CONC;
-                    ena <= 1;
-                    wea <= 1;
-                    sel <= 0;
-                    O_WR_DONE <= 0;
-                end else if(I_RD_ENA_PULSE)begin
-                    state <= S_DELAY;
-                    delay_ff <= 0;
-                    ena <= 1;
-                    wea <= 0;
-                    sel <= 0;
-                    O_VLD <= 0;
-                end else begin
-                    O_MAT[8:11] <= dout_mat;
-                    state <= S_OUT;
-                end
+                O_MAT[8:11] <= dout_mat;
+                state <= S_OUT;
             end
             S_OUT    :begin
-                if(I_WR_ENA_PULSE)begin
-                    state <= S_WR_CONC;
-                    ena <= 1;
-                    wea <= 1;
-                    sel <= 0;
-                    O_WR_DONE <= 0;
-                end else if(I_RD_ENA_PULSE)begin
-                    state <= S_DELAY;
-                    delay_ff <= 0;
-                    ena <= 1;
-                    wea <= 0;
-                    sel <= 0;
-                    O_VLD <= 0;
-                end else begin
-                    O_VLD <= 1;
-                    ena <= 0;
-                    wea <= 0;
-                    O_MAT[12:15] <= dout_mat;
-                    state <= S_IDLE;
-                end
+                O_VLD <= 1;
+                ena <= 0;
+                wea <= 0;
+                O_MAT[12:15] <= dout_mat;
+                state <= S_IDLE;
             end
             S_WR_CONC:begin
-                if(I_WR_ENA_PULSE)begin
-                    state <= S_WR_CONC;
-                    ena <= 1;
-                    wea <= 1;
-                    sel <= 0;
-                    O_WR_DONE <= 0;
-                end else if(I_RD_ENA_PULSE)begin
-                    state <= S_DELAY;
-                    delay_ff <= 0;
-                    ena <= 1;
+                if(sel < 2'b11)begin
+                    sel <= sel + 1;
+                    state <= state;
+                end else begin//sel==3
+                    state <= S_IDLE;
+                    ena <= 0;
                     wea <= 0;
-                    sel <= 0;
-                    O_VLD <= 0;
-                end else begin
-                    if(sel < 2'b11)begin
-                        sel <= sel + 1;
-                        state <= state;
-                    end else begin//sel==3
-                        state <= S_IDLE;
-                        ena <= 0;
-                        wea <= 0;
-                        O_WR_DONE <= 1;
-                    end
+                    O_WR_DONE <= 1;
                 end
             end
         endcase

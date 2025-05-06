@@ -3,8 +3,8 @@
 module bram_manager(
     input  logic       I_CLK              , 
     input  logic       I_RST_N            , 
-    input  logic       I_RD_VLD_PULSE     ,
-    input  logic       I_WR_VLD_PULSE     ,
+    input  logic       I_RD_ENA_PULSE     ,
+    input  logic       I_WR_ENA_PULSE     ,
     input  logic [7:0] I_SEL              ,//sel,addr:{[2:0],[5:0]} high_addr to choose Q,K,V,low_addr to choose line
     input  logic [7:0] I_MAT [0:15][0:127],
     output logic       O_VLD              ,
@@ -69,13 +69,13 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
     end else begin
         case(state)
             S_IDLE   :begin
-                if(I_WR_VLD_PULSE)begin
+                if(I_WR_ENA_PULSE)begin
                     state <= S_WR_CONC;
                     ena <= 1;
                     wea <= 1;
                     sel <= 0;
                     O_WR_DONE <= 0;
-                end else if(I_RD_VLD_PULSE)begin
+                end else if(I_RD_ENA_PULSE)begin
                     state <= S_DELAY;
                     delay_ff <= 0;
                     ena <= 1;
@@ -87,13 +87,13 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
                 end
             end
             S_DELAY  :begin
-                if(I_WR_VLD_PULSE)begin
+                if(I_WR_ENA_PULSE)begin
                     state <= S_WR_CONC;
                     ena <= 1;
                     wea <= 1;
                     sel <= 0;
                     O_WR_DONE <= 0;
-                end else if(I_RD_VLD_PULSE)begin
+                end else if(I_RD_ENA_PULSE)begin
                     state <= S_DELAY;
                     delay_ff <= 0;
                     ena <= 1;
@@ -112,13 +112,13 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
                 end
             end
             S_CONCAT0:begin
-                if(I_WR_VLD_PULSE)begin
+                if(I_WR_ENA_PULSE)begin
                     state <= S_WR_CONC;
                     ena <= 1;
                     wea <= 1;
                     sel <= 0;
                     O_WR_DONE <= 0;
-                end else if(I_RD_VLD_PULSE)begin
+                end else if(I_RD_ENA_PULSE)begin
                     state <= S_DELAY;
                     delay_ff <= 0;
                     ena <= 1;
@@ -137,13 +137,13 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
                 end
             end
             S_CONCAT1:begin
-                if(I_WR_VLD_PULSE)begin
+                if(I_WR_ENA_PULSE)begin
                     state <= S_WR_CONC;
                     ena <= 1;
                     wea <= 1;
                     sel <= 0;
                     O_WR_DONE <= 0;
-                end else if(I_RD_VLD_PULSE)begin
+                end else if(I_RD_ENA_PULSE)begin
                     state <= S_DELAY;
                     delay_ff <= 0;
                     ena <= 1;
@@ -156,13 +156,13 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
                 end
             end
             S_OUT    :begin
-                if(I_WR_VLD_PULSE)begin
+                if(I_WR_ENA_PULSE)begin
                     state <= S_WR_CONC;
                     ena <= 1;
                     wea <= 1;
                     sel <= 0;
                     O_WR_DONE <= 0;
-                end else if(I_RD_VLD_PULSE)begin
+                end else if(I_RD_ENA_PULSE)begin
                     state <= S_DELAY;
                     delay_ff <= 0;
                     ena <= 1;
@@ -178,13 +178,13 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
                 end
             end
             S_WR_CONC:begin
-                if(I_WR_VLD_PULSE)begin
+                if(I_WR_ENA_PULSE)begin
                     state <= S_WR_CONC;
                     ena <= 1;
                     wea <= 1;
                     sel <= 0;
                     O_WR_DONE <= 0;
-                end else if(I_RD_VLD_PULSE)begin
+                end else if(I_RD_ENA_PULSE)begin
                     state <= S_DELAY;
                     delay_ff <= 0;
                     ena <= 1;

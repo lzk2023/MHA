@@ -70,8 +70,17 @@ assign i_softmax_m = 0;
 assign i_softmax_l = 0;
 logic [15:0] i_softmax_l;//old li
 logic [15:0] o_softmax_l;//new li
+logic [7:0]  mi_old[0:15];
+logic [15:0] li_old[0:15];
 logic [7:0]  m_reg [0:1023];                                    //store mi                           
 logic [15:0] l_reg [0:1023];                                    //store li                           
+logic [7:0]  o_coefficient[0:15];
+logic [7:0]  coefficient[0:15];
+logic coef_upd_ena;
+logic coef_upd_vld;
+logic [7:0] coef_matrix [0:SA_R-1][0:SA_C-1];
+
+
 logic [D_W-1:0] key_data_matrix_transpose [0:D_K-1][0:DIM-1];   //matrix:K^T                         
 //wire [D_W-1:0] value_data_matrix [0:DIM-1][0:D_K-1];          //matrix:V                   
 //wire [D_W-1:0] calculate_matrix_1 [0:SA_R-1][0:D_K-1];        //matrix:input SA                    
@@ -114,6 +123,10 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
     if(!I_ASYN_RSTN | !I_SYNC_RSTN)begin
         state         <= S_IDLE        ;
         state_load    <= S_LOAD_Q      ;
+        m_reg         <= '{default:'b0};
+        l_reg         <= '{default:'b0};
+        mi_old        <= '{default:'b0};
+        li_old        <= '{default:'b0};
         O_RD_ENA      <= 0             ;
         O_BRAM_BLK_SEL<= 0             ;
         O_MAT_1       <= '{default:'b0};
@@ -129,8 +142,6 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
             S_IDLE    :begin
                 if(I_ATTN_START)begin
                     state       <= S_LOAD;
-                    //O_MAT_1     <= I_MAT_Q ;
-                    //O_MAT_2     <= key_data_matrix_transpose ;
                     O_SA_START  <= 0       ;
                 end else begin
                     state       <= state   ;
@@ -181,10 +192,12 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                         if(I_BRAM_RD_VLD)begin
                             state      <= S_CLEAR0;
                             state_load <= S_LOAD_Q;
+                            mi_old     <= m_reg[0:15];//store mi,li
+                            li_old     <= l_reg[0:15];//store mi,li
                             mat_o      <= I_BRAM_RD_MAT;
                             O_RD_ENA   <= 0;
                         end else begin
-                            O_RD_ENA      <= 1;
+                            O_RD_ENA            <= 1;
                             O_BRAM_BLK_SEL[7:6] <= 2'b11;//select O
                             O_BRAM_BLK_SEL[5:0] <= 6'b00;
                         end
@@ -256,6 +269,8 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                     O_SA_START    <= 0        ;
                     if(out_vld)begin
                         O_MAT_2[sel_dim][0:SA_C-1] <= softmax_out ;
+                        m_reg[sel_dim] <= o_softmax_m;//upd mi,li
+                        l_reg[sel_dim] <= o_softmax_l;//upd mi,li
                         sel_dim     <= sel_dim + 1;
                     end else begin
                         O_MAT_2     <= O_MAT_2    ;
@@ -306,6 +321,34 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
     end
 end
 
+always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
+    if(!I_ASYN_RSTN)begin
+        coef_upd_ena <= 0;
+        coefficient  <= '{default:'b0};
+    end else begin
+        if(state == S_CLEAR3)begin
+            coef_upd_ena <= 1;
+        end else if(coef_upd_vld)begin
+            coef_upd_ena <= 0;
+            coefficient  <= o_coefficient;
+        end else begin
+            coef_upd_ena <= coef_upd_ena;
+        end
+    end
+end
+
+generate
+    for(genvar i=0;i<SA_R;i=i+1)begin:diag_coef_gen
+        for(genvar j=0;j<SA_C;j=j+1)begin
+            if(i==j)begin
+                assign coef_matrix[i][j] = coefficient[i];
+            end else begin
+                assign coef_matrix[i][j] = 0;
+            end
+        end
+    end
+endgenerate
+
 safe_softmax#(  
     .D_W(D_W),
     .NUM(16) //dimention
@@ -320,5 +363,20 @@ safe_softmax#(
     .O_EXP_SUM  (o_softmax_l  ),
     .O_VLD      (out_vld      ),
     .O_DATA     (softmax_out  )
+);
+
+o_matrix_upd#(
+    .D_W(D_W),
+    .TIL(16) //tiling row == 16
+)u_o_matrix_upd(
+    .I_CLK        (I_CLK        ),
+    .I_RST_N      (I_ASYN_RSTN  ),
+    .I_ENA        (coef_upd_ena ),//keep
+    .I_LI_OLD     (li_old       ),
+    .I_MI_OLD     (mi_old       ),
+    .I_LI_NEW     (l_reg[0:15]  ),
+    .I_MI_NEW     (m_reg[0:15]  ),
+    .O_VLD        (coef_upd_vld ),
+    .O_COEFFICIENT(o_coefficient)
 );
 endmodule

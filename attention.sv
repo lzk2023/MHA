@@ -28,6 +28,7 @@ module attention#(
     output logic           O_SA_START                       ,//to SA_wrapper
     output logic [D_W-1:0] O_MAT_1     [0:SA_R-1][0:127]    ,//to SA_wrapper
     output logic [D_W-1:0] O_MAT_2     [0:127][0:SA_C-1]    ,//to SA_wrapper
+    output logic [D_W-1:0] O_DATA_LOAD [0:SA_R-1][0:SA_C-1] ,//to SA_wrapper
     output logic [7:0]     O_M_DIM                          ,//to SA_wrapper
     output logic           O_DATA_VLD                       ,
     output logic [D_W-1:0] O_ATT_DATA  [0:DIM-1][0:D_K-1]   ,//output O'
@@ -54,7 +55,9 @@ enum logic [3:0] {
     S_CLEAR3   = 4'b1100,//O = P*V
     S_P_V      = 4'b1101,
     S_CLEAR4   = 4'b1111,
-    S_O        = 4'b1110 //upd O_new = (diag(li_new)^-1 * diag(li)*exp(mi-mi_new)) * O_old + O
+    S_O_MUL    = 4'b1110,//cal: (diag(li_new)^-1 * diag(li)*exp(mi-mi_new)) * O_old
+    S_CLEAR5   = 4'b1010,
+    S_O        = 4'b1011 //upd O_new = (diag(li_new)^-1 * diag(li)*exp(mi-mi_new)) * O_old + O
 } state;
 
 enum logic [1:0]{
@@ -91,6 +94,7 @@ logic [D_W-1:0] softmax_out [0:15] ;
 
 logic [4:0]     sel_dim      ;//1~16,softmax & select P
 logic           softmax_start;
+logic           softmax_out_vld;
 
 logic [D_W-1:0] mat_q [0:DIM-1][0:D_K-1];//load tiling Q
 logic [D_W-1:0] mat_k [0:DIM-1][0:D_K-1];//load tiling K
@@ -127,10 +131,15 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
         l_reg         <= '{default:'b0};
         mi_old        <= '{default:'b0};
         li_old        <= '{default:'b0};
+        mat_q         <= '{default:'b0};
+        mat_k         <= '{default:'b0};
+        mat_v         <= '{default:'b0};
+        mat_o         <= '{default:'b0};
         O_RD_ENA      <= 0             ;
         O_BRAM_BLK_SEL<= 0             ;
         O_MAT_1       <= '{default:'b0};
         O_MAT_2       <= '{default:'b0};
+        O_DATA_LOAD   <= '{default:'b0};
         O_M_DIM       <= 8'd128        ;
         O_SA_START    <= 0             ;
         softmax_start <= 0             ;
@@ -255,27 +264,23 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                 softmax_start <= 1        ;
             end
             S_SOFTMAX :begin
-                if(sel_dim == 5'd16)begin
-                    state       <= S_CLEAR3   ;
-                    sel_dim     <= 1          ;
-                    for(int x=0;x<SA_R;x=x+1)begin
-                        O_MAT_1[x][0:SA_C-1]     <= mat_v[x][0:SA_C-1]    ;//O_MAT_1[0:SA_R-1][0:SA_C-1] <= mat_v[0:DIM-1][0:SA_C-1]
-                    end
-                    O_MAT_2     <= O_MAT_2    ;
-                    O_SA_START  <= 0          ;
-                end else begin
-                    state         <= state    ;
-                    softmax_start <= 1        ;
-                    O_SA_START    <= 0        ;
-                    if(out_vld)begin
-                        O_MAT_2[sel_dim][0:SA_C-1] <= softmax_out ;
-                        m_reg[sel_dim] <= o_softmax_m;//upd mi,li
-                        l_reg[sel_dim] <= o_softmax_l;//upd mi,li
-                        sel_dim     <= sel_dim + 1;
+                if(softmax_out_vld)begin
+                    O_MAT_2[sel_dim][0:SA_C-1] <= softmax_out ;
+                    m_reg[sel_dim] <= o_softmax_m;//upd mi,li
+                    l_reg[sel_dim] <= o_softmax_l;//upd mi,li
+                    if(sel_dim == 5'd15)begin
+                        state       <= S_CLEAR3   ;
+                        sel_dim     <= 0          ;
+                        for(int x=0;x<SA_R;x=x+1)begin
+                            O_MAT_1[x][0:SA_C-1]     <= mat_v[x][0:SA_C-1]    ;//O_MAT_1[0:SA_R-1][0:SA_C-1] <= mat_v[0:DIM-1][0:SA_C-1]
+                        end
+                        O_SA_START  <= 0          ;
                     end else begin
-                        O_MAT_2     <= O_MAT_2    ;
-                        sel_dim     <= sel_dim    ;
+                        sel_dim     <= sel_dim + 1;
                     end
+                end else begin
+                    O_MAT_2     <= O_MAT_2    ;
+                    sel_dim     <= sel_dim    ;
                 end
             end
             S_CLEAR3  :begin
@@ -286,31 +291,62 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
             end
             S_P_V     :begin
                 if(I_SA_VLD)begin
-                    if(sel_dim == 5'd8)begin
+                    if(sel_dim == 5'd7)begin
                         state       <= S_CLEAR4   ;
+                        O_MAT_1     <= mat_o      ;//O_old
+                        for(int u=0;u<SA_R;u=u+1)begin
+                            O_MAT_2[u][0:SA_C-1] <= coef_matrix[u];//O_MAT_2[0:15][0:15]     <= coef_matrix    ;
+                        end
+                        O_SA_START  <= 0          ;
+                        sel_dim <= 0;
+                    end else begin
+                        state       <= state      ;
+                        O_SA_START  <= 1          ;
+                        sel_dim     <= sel_dim + 1;
+                        for(int y=0;y<SA_R;y=y+1)begin
+                            O_MAT_1[y][0:SA_C-1]     <= mat_v[y][(sel_dim+1)*16 +: SA_C]    ;//select V
+                        end
+                        O_MAT_2     <= O_MAT_2    ;//matrix: P
+                    end
+                    for(int l=0;l<SA_R;l=l+1)begin
+                        O_ATT_DATA[l][sel_dim*16 +: SA_C]  <= I_SA_RESULT[l];//O_ATT_DATA[0:SA_R-1][0:SA_C-1]  <= I_SA_RESULT;
+                    end
+                end else begin
+                    state       <= state      ;
+                    O_MAT_1     <= O_MAT_1    ;//V_selected
+                    O_MAT_2     <= O_MAT_2    ;//P
+                    O_SA_START  <= 0          ;
+                end
+            end
+            S_CLEAR4  :begin
+                state       <= S_O_MUL  ;
+                O_SA_START  <= 1        ;
+                //O_M_DIM     <= 8'd16        ;
+            end
+            S_O_MUL   :begin
+                if(I_SA_VLD)begin
+                    if(sel_dim == 5'd7)begin
+                        state       <= S_CLEAR5   ;
                         O_SA_START  <= 0          ;
                     end else begin
                         state       <= state      ;
                         O_SA_START  <= 1          ;
                         sel_dim     <= sel_dim + 1;
                         for(int y=0;y<SA_R;y=y+1)begin
-                            O_MAT_1[y][0:SA_C-1]     <= mat_v[y][sel_dim*16 +: SA_C]    ;//select V
+                            O_MAT_1[y][sel_dim*16 +: SA_C] <= I_SA_RESULT[y]    ;//select O
                         end
-                        O_MAT_2     <= O_MAT_2    ;//matrix: P
-                    end
-                    for(int l=0;l<SA_R;l=l+1)begin
-                        O_ATT_DATA[l][(sel_dim-1)*16 +: SA_C]  <= I_SA_RESULT[l];//O_ATT_DATA[0:SA_R-1][0:SA_C-1]  <= I_SA_RESULT;
+                        O_MAT_2     <= O_MAT_2    ;//matrix: coefficient
                     end
                 end else begin
                     state       <= state      ;
-                    O_MAT_1     <= O_MAT_1    ;//S
-                    O_MAT_2     <= O_MAT_2    ;//scale
+                    O_MAT_1     <= O_MAT_1    ;//O_selected
+                    O_MAT_2     <= O_MAT_2    ;//matrix: coefficient
                     O_SA_START  <= 0          ;
                 end
             end
-            S_CLEAR4  :begin
-                state       <= S_O      ;
-                O_SA_START  <= 0        ;
+            S_CLEAR5  :begin
+                state       <= S_O  ;
+                O_SA_START  <= 0    ;
                 //O_M_DIM     <= 0        ;
             end
             S_O       :begin
@@ -353,16 +389,16 @@ safe_softmax#(
     .D_W(D_W),
     .NUM(16) //dimention
 )u_softmax_for_attn(
-    .I_CLK      (I_CLK        ),
-    .I_RST_N    (I_ASYN_RSTN  ),
-    .I_START    (softmax_start),//keep when calculate
+    .I_CLK      (I_CLK          ),
+    .I_RST_N    (I_ASYN_RSTN    ),
+    .I_START    (softmax_start  ),//keep when calculate
     .I_DATA     (O_MAT_1[sel_dim][0:SA_C-1]),
-    .I_X_MAX    (i_softmax_m  ),
-    .I_EXP_SUM  (i_softmax_l  ),
-    .O_X_MAX    (o_softmax_m  ),
-    .O_EXP_SUM  (o_softmax_l  ),
-    .O_VLD      (out_vld      ),
-    .O_DATA     (softmax_out  )
+    .I_X_MAX    (i_softmax_m    ),
+    .I_EXP_SUM  (i_softmax_l    ),
+    .O_X_MAX    (o_softmax_m    ),
+    .O_EXP_SUM  (o_softmax_l    ),
+    .O_VLD      (softmax_out_vld),
+    .O_DATA     (softmax_out    )
 );
 
 o_matrix_upd#(

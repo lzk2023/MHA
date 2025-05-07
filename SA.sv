@@ -33,6 +33,7 @@ module SA #(
     input  logic           I_END_FLAG                         ,
     input  logic [D_W-1:0] I_X          [0:SA_R-1]            ,//input x(from left)
     input  logic [D_W-1:0] I_W          [0:SA_C-1]            ,//input weight(from up)
+    input  logic [D_W-1:0] I_D          [0:SA_R-1][0:SA_C-1]  ,
     output logic           O_SHIFT                            ,//PE shift,O_SHIFT <= 1
     output logic [D_W-1:0] O_OUT        [0:SA_R-1][0:SA_C-1]   //output data,
 );
@@ -73,6 +74,7 @@ generate                                                //SA_R(i)|             S
                     .I_VLD      (x_vld),
                     .I_X        (I_X[0]),//input x(from left)
                     .I_W        (I_W[0]),//input weight(from up)
+                    .I_D        (I_D[i][j]),//input load data
                     .O_VLD      (pe00_vld),
                     .O_X        (x_io_matrix[0][0]),//output x(right shift)
                     .O_W        (w_io_matrix[0][0]),
@@ -89,6 +91,7 @@ generate                                                //SA_R(i)|             S
                     .I_VLD      (x_vld),
                     .I_X        (I_X[i]),//input x(from left)
                     .I_W        (w_io_matrix[i-1][0]),//input weight(from up)
+                    .I_D        (I_D[i][j]),//input load data
                     .O_VLD      (),
                     .O_X        (x_io_matrix[i][0]),//output x(right shift)
                     .O_W        (w_io_matrix[i][0]),
@@ -104,6 +107,7 @@ generate                                                //SA_R(i)|             S
                     .I_VLD      (x_vld),
                     .I_X        (x_io_matrix[0][j-1]),//input x(from left)
                     .I_W        (I_W[j]),//input weight(from up)
+                    .I_D        (I_D[i][j]),//input load data
                     .O_VLD      (),
                     .O_X        (x_io_matrix[0][j]),//output x(right shift)
                     .O_W        (w_io_matrix[0][j]),
@@ -119,6 +123,7 @@ generate                                                //SA_R(i)|             S
                     .I_VLD      (x_vld),
                     .I_X        (x_io_matrix[i][j-1]),//input x(from left)
                     .I_W        (w_io_matrix[i-1][j]),//input weight(from up)
+                    .I_D        (I_D[i][j]),//input load data
                     .O_VLD      (),
                     .O_X        (x_io_matrix[i][j]),//output x(right shift)
                     .O_W        (w_io_matrix[i][j]),

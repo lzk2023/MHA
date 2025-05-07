@@ -10,30 +10,13 @@ localparam SA_C   = 16;
 bit                     I_CLK        ;
 bit                     I_ASYN_RSTN  ;
 bit                     I_START_FLAG ;
-  
-//logic                        O_MATRIX_OVER;//
+
 logic                        O_PE_SHIFT   ;
 logic                        O_OUT_VLD    ;
 bit [D_W-1:0] X_MATRIX [0:SA_R-1][0:127];
 bit [D_W-1:0] W_MATRIX [0:127][0:SA_C-1];
+bit [D_W-1:0] D_MATRIX [0:SA_R-1][0:SA_C-1];
 bit [D_W-1:0] O_MATRIX [0:SA_R-1][0:SA_C-1];
-//SA_mat_manager#(
-//    .D_W  (D_W  ),
-//    .X_R  (SA_R ),
-//    .M_DIM(SA_C ),//X_C == W_R == M_DIM,dimention of the 2 multiply matrix.
-//    .W_C  (SA_C )
-//)u_dut_SA_mat_manager(
-//    .I_CLK      (I_CLK        ),
-//    .I_ASYN_RSTN(I_ASYN_RSTN  ),
-//    .I_SYNC_RSTN(I_SYNC_RSTN  ),
-//    .I_PE_SHIFT (O_PE_SHIFT   ),
-//    .I_START    (I_START_FLAG ),
-//    .I_X_MATRIX (I_X_MATRIX   ),
-//    .I_W_MATRIX (I_W_MATRIX   ),
-//    .O_OVER     (O_MATRIX_OVER),
-//    .O_X_VECTOR (I_X          ),
-//    .O_W_VECTOR (I_W          )
-//);
 
 SA_wrapper#(
     .D_W        (D_W          ),
@@ -46,6 +29,7 @@ SA_wrapper#(
     .I_M_DIM        (8'd16),
     .I_X_MATRIX     (X_MATRIX     ),//input x(from left)     
     .I_W_MATRIX     (W_MATRIX     ),//input weight(from ddr)             
+    .I_DATA_LOAD    (D_MATRIX     ),
     .O_OUT_VLD      (O_OUT_VLD    ),// 
     .O_PE_SHIFT     (O_PE_SHIFT   ),                                  
     .O_OUT          (O_MATRIX     ) //OUT.shape = (X_R,64)               
@@ -53,16 +37,6 @@ SA_wrapper#(
 
 always #5 I_CLK = ~I_CLK;
 
-//function [15:0] mul_16;
-//    input [15:0] a;
-//    input [15:0] b;
-//    reg [31:0] c;
-//    begin
-//        c = $signed(a) * $signed(b);
-//        mul_16 = {c[31],c[27:13]};
-//    end
-//endfunction
-//int i,j;
 initial begin
     #100
     I_ASYN_RSTN  = 1;
@@ -80,6 +54,16 @@ initial begin
 
 
     I_START_FLAG  = 1;
+    D_MATRIX = '{default:8'h01};
+    for(int j=0;j<16;j=j+1)begin
+        for(int k=0;k<16;k=k+1)begin
+            if(k == j)begin
+                W_MATRIX[j][k] = 8'h20;
+            end else begin
+                W_MATRIX[j][k] = 8'h00;
+            end
+        end
+    end
     #10
     I_START_FLAG  = 0;
     #1000

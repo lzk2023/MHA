@@ -15,6 +15,7 @@ bit                I_ATTN_START ;
 logic                O_SA_START ;
 logic [7:0] O_MAT_1 [0:15][0:127]   ;
 logic [7:0] O_MAT_2 [0:127][0:15]   ;
+logic [7:0] O_DATA_LOAD [0:15][0:15];
 logic [7:0] O_M_DIM ;
 logic                O_DATA_VLD ;
 logic [7:0] O_ATT_DATA [0:15][0:127];
@@ -49,6 +50,7 @@ attention#(
     .O_SA_START     (O_SA_START   ),//to SA_wrapper
     .O_MAT_1        (O_MAT_1      ),//to SA_wrapper
     .O_MAT_2        (O_MAT_2      ),//to SA_wrapper
+    .O_DATA_LOAD    (O_DATA_LOAD  ),//to SA_wrapper
     .O_M_DIM        (O_M_DIM      ),//to SA_wrapper
     .O_DATA_VLD     (O_DATA_VLD   ),
     .O_ATT_DATA     (O_ATT_DATA   ),
@@ -84,6 +86,7 @@ SA_wrapper#(
     .I_M_DIM        (O_M_DIM      ),//
     .I_X_MATRIX     (O_MAT_1      ),//input x(from left)     
     .I_W_MATRIX     (O_MAT_2      ),//input weight(from ddr)             
+    .I_DATA_LOAD    (O_DATA_LOAD  ),
     .O_OUT_VLD      (I_SA_VLD     ),// 
     .O_PE_SHIFT     (I_PE_SHIFT   ),                                  
     .O_OUT          (I_SA_RESULT  ) //OUT.shape = (X_R,64)               
@@ -114,7 +117,8 @@ initial begin
     //end
     #10
     I_ATTN_START = 0;
-    #12000
+    wait(O_DATA_VLD)
+    #1000
     $finish;
 end
 endmodule

@@ -32,9 +32,10 @@ module SA_wrapper#(
     input  logic [7:0]     I_M_DIM                            ,//max:128                                         SA_C    
     input  logic [D_W-1:0] I_X_MATRIX   [0:SA_R-1][0:127]     ,//input x(from left)        matrix x:     x|<-------------->|           //X_C == W_R == M_DIM,dimention of the 2 multiply matrix.
     input  logic [D_W-1:0] I_W_MATRIX   [0:127][0:SA_C-1]     ,//input weight(from up)                   |
-    output logic           O_OUT_VLD                          ,//                                   SA_R |
-    output logic           O_PE_SHIFT                         ,//  OUT.shape = (X_R,SA_C)                |
-    output logic [D_W-1:0] O_OUT        [0:SA_R-1][0:SA_C-1]   //                                        x
+    input  logic [D_W-1:0] I_DATA_LOAD  [0:SA_R-1][0:SA_C-1]  ,//                                   SA_R |
+    output logic           O_OUT_VLD                          ,//  OUT.shape = (X_R,SA_C)                |
+    output logic           O_PE_SHIFT                         ,//                                        x
+    output logic [D_W-1:0] O_OUT        [0:SA_R-1][0:SA_C-1]   
 );
 
 enum logic  [2:0] {
@@ -186,6 +187,7 @@ SA #(
     .I_END_FLAG  (O_OUT_VLD   ),
     .I_X         (input_x     ),//input x(from left)
     .I_W         (input_w     ),//input weight(from up)
+    .I_D         (I_DATA_LOAD ),//input load data
     .O_SHIFT     (O_PE_SHIFT  ),//PE shift,O_SHIFT <= 1
     .O_OUT       (O_OUT       ) //output data(keep),
 );

@@ -30,6 +30,7 @@ module PE#(
     input  logic           I_VLD      ,
     input  logic [D_W-1:0] I_X        ,//input x(from left)
     input  logic [D_W-1:0] I_W        ,//input weight(from up)
+    input  logic [D_W-1:0] I_D        ,//input load data
     output logic           O_VLD      ,
     output logic [D_W-1:0] O_X        ,//output x(right shift)
     output logic [D_W-1:0] O_W        ,//output weight(down shift)
@@ -39,10 +40,15 @@ module PE#(
 logic [2*D_W-1:0] o_mul_out;
 
 always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
-    if (!I_ASYN_RSTN | !I_SYNC_RSTN) begin
+    if (!I_ASYN_RSTN) begin
         O_X     <= 'b0;
         O_W     <= 'b0;
         O_D     <= 'b0;
+        O_VLD   <= 'b0;
+    end else if(!I_SYNC_RSTN)begin
+        O_X     <= 'b0;
+        O_W     <= 'b0;
+        O_D     <= I_D;
         O_VLD   <= 'b0;
     end else if(I_VLD)begin
         O_X     <= I_X;

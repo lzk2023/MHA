@@ -45,26 +45,27 @@ module attention#(
 localparam S_DK_VALUE = 8'd3;//0.08838*32,1/(sqrt(dk=128))
 enum logic [3:0] {
     S_IDLE     = 4'b0000,
-    S_LOAD     = 4'b0001,//load Q,K,V,O from bram
-    S_CLEAR0   = 4'b0011,//S = Q*K^T
-    S_Q_K      = 4'b0010,
-    S_CLEAR1   = 4'b0110,//S/d_k
-    S_SCALE    = 4'b0111,
-    S_CLEAR2   = 4'b0101,//P = softmax(S/d_k)
-    S_SOFTMAX  = 4'b0100,
-    S_CLEAR3   = 4'b1100,//O = P*V
-    S_P_V      = 4'b1101,
-    S_CLEAR4   = 4'b1111,
-    S_O_MUL    = 4'b1110,//cal: (diag(li_new)^-1 * diag(li)*exp(mi-mi_new)) * O_old
-    S_CLEAR5   = 4'b1010,
-    S_O        = 4'b1011 //upd O_new = (diag(li_new)^-1 * diag(li)*exp(mi-mi_new)) * O_old + O
+    S_LOAD_Q_K = 4'b0001,//load Q,K from bram
+    S_CLEAR0   = 4'b0011,
+    S_Q_K      = 4'b0010,//S = Q*K^T
+    S_CLEAR1   = 4'b0110,
+    S_SCALE    = 4'b0111,//scale: S/d_k
+    S_CLEAR2   = 4'b0101,
+    S_SOFTMAX  = 4'b0100,//P = softmax(S/d_k)
+    S_LOAD_V   = 4'b1100,
+    S_CLEAR3   = 4'b1101,
+    S_P_V      = 4'b1111,//O = P*V
+    S_LOAD_O   = 4'b1110,
+    S_CLEAR4   = 4'b1010,
+    S_O_UPD    = 4'b1011,//upd O_new = (diag(li_new)^-1 * diag(li)*exp(mi-mi_new)) * O_old + O
+    S_CLEAR5   = 4'b1001,
+    S_O_WRMEM  = 4'b1000
 } state;
 
 enum logic [1:0]{
-    S_LOAD_Q = 2'b00,
-    S_LOAD_K = 2'b01,
-    S_LOAD_V = 2'b11,
-    S_LOAD_O = 2'b10
+    S_LOAD_K  = 2'b00,
+    S_K_TRANS = 2'b01,
+    S_LOAD_Q  = 2'b11
 } state_load;
 
 logic [7:0]  i_softmax_m;//old mi
@@ -84,10 +85,7 @@ logic coef_upd_vld;
 logic [7:0] coef_matrix [0:SA_R-1][0:SA_C-1];
 
 
-logic [D_W-1:0] key_data_matrix_transpose [0:D_K-1][0:DIM-1];   //matrix:K^T                         
-//wire [D_W-1:0] value_data_matrix [0:DIM-1][0:D_K-1];          //matrix:V                   
-//wire [D_W-1:0] calculate_matrix_1 [0:SA_R-1][0:D_K-1];        //matrix:input SA                    
-//wire [D_W-1:0] calculate_matrix_2 [0:D_K-1][0:SA_C-1];        //matrix:input SA
+logic [D_W-1:0] key_data_matrix_transpose [0:D_K-1][0:DIM-1];   //matrix:K^T
 logic [D_W-1:0] scale_matrix [0:SA_R-1][0:SA_C-1];              //matrix:scale(*1/sqrt(d_k))
 
 logic [D_W-1:0] softmax_out [0:15] ;
@@ -96,16 +94,15 @@ logic [4:0]     sel_dim      ;//1~16,softmax & select P
 logic           softmax_start;
 logic           softmax_out_vld;
 
-logic [D_W-1:0] mat_q [0:DIM-1][0:D_K-1];//load tiling Q
-logic [D_W-1:0] mat_k [0:DIM-1][0:D_K-1];//load tiling K
-logic [D_W-1:0] mat_v [0:DIM-1][0:D_K-1];//load tiling V
-logic [D_W-1:0] mat_o [0:DIM-1][0:D_K-1];//load tiling O'
+logic [D_W-1:0] matrix_adder_in  [0:SA_R-1][0:SA_C-1];
+logic [D_W-1:0] matrix_adder_out [0:SA_R-1][0:SA_C-1];
+
 //////////////////////////////////////////////////////////////////////
 
 generate      //matrix transpose
     for(genvar i=0;i<DIM;i=i+1)begin
         for(genvar j=0;j<D_K;j=j+1)begin
-            assign key_data_matrix_transpose[j][i] = mat_k[i][j];
+            assign key_data_matrix_transpose[j][i] = O_MAT_1[i][j];
         end
     end 
 endgenerate
@@ -131,11 +128,8 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
         l_reg         <= '{default:'b0};
         mi_old        <= '{default:'b0};
         li_old        <= '{default:'b0};
-        mat_q         <= '{default:'b0};
-        mat_k         <= '{default:'b0};
-        mat_v         <= '{default:'b0};
-        mat_o         <= '{default:'b0};
         O_RD_ENA      <= 0             ;
+        O_WR_ENA      <= 0             ;
         O_BRAM_BLK_SEL<= 0             ;
         O_MAT_1       <= '{default:'b0};
         O_MAT_2       <= '{default:'b0};
@@ -150,7 +144,7 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
         case(state)
             S_IDLE    :begin
                 if(I_ATTN_START)begin
-                    state       <= S_LOAD;
+                    state       <= S_LOAD_Q_K;
                     O_SA_START  <= 0       ;
                 end else begin
                     state       <= state   ;
@@ -159,25 +153,13 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                     O_SA_START  <= 0       ;
                 end
             end
-            S_LOAD    :begin
+            S_LOAD_Q_K:begin
                 case(state_load)
-                    S_LOAD_Q:begin
+                    S_LOAD_K :begin
                         if(I_BRAM_RD_VLD)begin
-                            state      <= S_LOAD;
-                            state_load <= S_LOAD_K;
-                            mat_q      <= I_BRAM_RD_MAT;
-                            O_RD_ENA   <= 0;
-                        end else begin
-                            O_RD_ENA      <= 1;
-                            O_BRAM_BLK_SEL[7:6] <= 2'b00;//select Q
-                            O_BRAM_BLK_SEL[5:0] <= 6'b00;
-                        end
-                    end
-                    S_LOAD_K:begin
-                        if(I_BRAM_RD_VLD)begin
-                            state      <= S_LOAD;
-                            state_load <= S_LOAD_V;
-                            mat_k      <= I_BRAM_RD_MAT;
+                            state      <= S_LOAD_Q_K;
+                            state_load <= S_K_TRANS;
+                            O_MAT_1    <= I_BRAM_RD_MAT;
                             O_RD_ENA   <= 0;
                         end else begin
                             O_RD_ENA      <= 1;
@@ -185,29 +167,21 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                             O_BRAM_BLK_SEL[5:0] <= 6'b00;
                         end
                     end
-                    S_LOAD_V:begin
+                    S_K_TRANS:begin
+                        state_load   <= S_LOAD_Q;
+                        O_MAT_2      <= key_data_matrix_transpose;
+                    end
+                    S_LOAD_Q :begin
                         if(I_BRAM_RD_VLD)begin
-                            state      <= S_LOAD;
-                            state_load <= S_LOAD_O;
-                            mat_v      <= I_BRAM_RD_MAT;
+                            state      <= S_CLEAR0;
+                            state_load <= S_LOAD_K;
+                            mi_old     <= m_reg[0:15];//store mi,li
+                            li_old     <= l_reg[0:15];//store mi,li
+                            O_MAT_1    <= I_BRAM_RD_MAT;
                             O_RD_ENA   <= 0;
                         end else begin
                             O_RD_ENA      <= 1;
-                            O_BRAM_BLK_SEL[7:6] <= 2'b10;//select V
-                            O_BRAM_BLK_SEL[5:0] <= 6'b00;
-                        end
-                    end
-                    S_LOAD_O:begin
-                        if(I_BRAM_RD_VLD)begin
-                            state      <= S_CLEAR0;
-                            state_load <= S_LOAD_Q;
-                            mi_old     <= m_reg[0:15];//store mi,li
-                            li_old     <= l_reg[0:15];//store mi,li
-                            mat_o      <= I_BRAM_RD_MAT;
-                            O_RD_ENA   <= 0;
-                        end else begin
-                            O_RD_ENA            <= 1;
-                            O_BRAM_BLK_SEL[7:6] <= 2'b11;//select O
+                            O_BRAM_BLK_SEL[7:6] <= 2'b00;//select Q
                             O_BRAM_BLK_SEL[5:0] <= 6'b00;
                         end
                     end
@@ -217,8 +191,6 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                 state       <= S_Q_K  ;
                 O_SA_START  <= 1      ;
                 O_M_DIM     <= 8'd128 ;
-                O_MAT_1     <= mat_q  ;
-                O_MAT_2     <= key_data_matrix_transpose ;
             end
             S_Q_K     :begin
                 if(I_SA_VLD)begin
@@ -269,11 +241,8 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                     m_reg[sel_dim] <= o_softmax_m;//upd mi,li
                     l_reg[sel_dim] <= o_softmax_l;//upd mi,li
                     if(sel_dim == 5'd15)begin
-                        state       <= S_CLEAR3   ;
+                        state       <= S_LOAD_V   ;
                         sel_dim     <= 0          ;
-                        for(int x=0;x<SA_R;x=x+1)begin
-                            O_MAT_1[x][0:SA_C-1]     <= mat_v[x][0:SA_C-1]    ;//O_MAT_1[0:SA_R-1][0:SA_C-1] <= mat_v[0:DIM-1][0:SA_C-1]
-                        end
                         O_SA_START  <= 0          ;
                     end else begin
                         sel_dim     <= sel_dim + 1;
@@ -281,6 +250,17 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                 end else begin
                     O_MAT_2     <= O_MAT_2    ;
                     sel_dim     <= sel_dim    ;
+                end
+            end
+            S_LOAD_V  :begin
+                if(I_BRAM_RD_VLD)begin
+                    state      <= S_CLEAR3;
+                    O_MAT_1    <= I_BRAM_RD_MAT;//load tiling V to O_MAT_1
+                    O_RD_ENA   <= 0;
+                end else begin
+                    O_RD_ENA      <= 1;
+                    O_BRAM_BLK_SEL[7:6] <= 2'b10;//select V
+                    O_BRAM_BLK_SEL[5:0] <= 6'b00;
                 end
             end
             S_CLEAR3  :begin
@@ -292,19 +272,18 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
             S_P_V     :begin
                 if(I_SA_VLD)begin
                     if(sel_dim == 5'd7)begin
-                        state       <= S_CLEAR4   ;
-                        O_MAT_1     <= mat_o      ;//O_old
+                        state       <= S_LOAD_O   ;
                         for(int u=0;u<SA_R;u=u+1)begin
                             O_MAT_2[u][0:SA_C-1] <= coef_matrix[u];//O_MAT_2[0:15][0:15]     <= coef_matrix    ;
                         end
                         O_SA_START  <= 0          ;
-                        sel_dim <= 0;
+                        sel_dim     <= 0          ;
                     end else begin
                         state       <= state      ;
                         O_SA_START  <= 1          ;
                         sel_dim     <= sel_dim + 1;
                         for(int y=0;y<SA_R;y=y+1)begin
-                            O_MAT_1[y][0:SA_C-1]     <= mat_v[y][(sel_dim+1)*16 +: SA_C]    ;//select V
+                            O_MAT_1[y][0:SA_C-1]     <= O_MAT_1[y][(sel_dim+1)*16 +: SA_C]    ;//select V
                         end
                         O_MAT_2     <= O_MAT_2    ;//matrix: P
                     end
@@ -318,22 +297,37 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                     O_SA_START  <= 0          ;
                 end
             end
+            S_LOAD_O  :begin
+                if(I_BRAM_RD_VLD)begin
+                    state      <= S_CLEAR4;
+                    O_MAT_1    <= I_BRAM_RD_MAT;
+                    O_RD_ENA   <= 0;
+                end else begin
+                    O_RD_ENA            <= 1;
+                    O_BRAM_BLK_SEL[7:6] <= 2'b11;//select O
+                    O_BRAM_BLK_SEL[5:0] <= 6'b00;
+                end
+            end
             S_CLEAR4  :begin
-                state       <= S_O_MUL  ;
+                state       <= S_O_UPD  ;
                 O_SA_START  <= 1        ;
                 //O_M_DIM     <= 8'd16        ;
             end
-            S_O_MUL   :begin
+            S_O_UPD   :begin
                 if(I_SA_VLD)begin
                     if(sel_dim == 5'd7)begin
                         state       <= S_CLEAR5   ;
                         O_SA_START  <= 0          ;
+                        for(int y=0;y<SA_R;y=y+1)begin
+                            O_ATT_DATA[y][sel_dim*16 +: SA_C] <= matrix_adder_out[y]  ;
+                        end
                     end else begin
                         state       <= state      ;
                         O_SA_START  <= 1          ;
                         sel_dim     <= sel_dim + 1;
                         for(int y=0;y<SA_R;y=y+1)begin
-                            O_MAT_1[y][sel_dim*16 +: SA_C] <= I_SA_RESULT[y]    ;//select O
+                            O_ATT_DATA[y][sel_dim*16 +: SA_C] <= matrix_adder_out[y]  ;
+                            O_MAT_1[y][0:SA_C-1] <= O_MAT_1[y][(sel_dim+1)*16 +: SA_C];//select O
                         end
                         O_MAT_2     <= O_MAT_2    ;//matrix: coefficient
                     end
@@ -345,13 +339,20 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                 end
             end
             S_CLEAR5  :begin
-                state       <= S_O  ;
-                O_SA_START  <= 0    ;
+                state       <= S_O_WRMEM  ;
+                O_SA_START  <= 0          ;
                 //O_M_DIM     <= 0        ;
             end
-            S_O       :begin
-                state      <= state;
-                O_DATA_VLD <= 1    ;
+            S_O_WRMEM :begin
+                if(I_BRAM_WR_DONE)begin
+                    state      <= S_IDLE;
+                    O_WR_ENA   <= 0;
+                    O_DATA_VLD <= 1;
+                end else begin
+                    O_WR_ENA      <= 1;
+                    O_BRAM_BLK_SEL[7:6] <= 2'b11;//select O
+                    O_BRAM_BLK_SEL[5:0] <= 6'b00;
+                end
             end
         endcase
     end
@@ -385,6 +386,12 @@ generate
     end
 endgenerate
 
+generate
+    for(genvar i=0;i<SA_R;i=i+1)begin
+        assign matrix_adder_in[i] = O_ATT_DATA[i][sel_dim*16 +: SA_C];
+    end
+endgenerate
+
 safe_softmax#(  
     .D_W(D_W),
     .NUM(16) //dimention
@@ -414,5 +421,15 @@ o_matrix_upd#(
     .I_MI_NEW     (m_reg[0:15]  ),
     .O_VLD        (coef_upd_vld ),
     .O_COEFFICIENT(o_coefficient)
+);
+
+matrix_add#(
+    .D_W  (D_W ),
+    .SA_R (SA_R),
+    .SA_C (SA_C)
+)u_matrix_adder(
+    .I_MAT_1(I_SA_RESULT),
+    .I_MAT_2(matrix_adder_in ),
+    .O_MAT_O(matrix_adder_out)
 );
 endmodule

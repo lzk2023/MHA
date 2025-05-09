@@ -27,7 +27,7 @@ module SA_wrapper#(
     parameter SA_C  = 16   //SA_COLUMN
 ) (
     input  logic           I_CLK                              ,
-    input  logic           I_ASYN_RSTN                        ,
+    input  logic           I_RST_N                            ,
     input  logic           I_START_FLAG                       ,
     input  logic [7:0]     I_M_DIM                            ,//max:128                                         SA_C    
     input  logic [D_W-1:0] I_X_MATRIX   [0:SA_R-1][0:127]     ,//input x(from left)        matrix x:     x|<-------------->|           //X_C == W_R == M_DIM,dimention of the 2 multiply matrix.
@@ -55,8 +55,8 @@ logic [D_W-1:0] in_x_ff [0:SA_R-1][0:SA_R-1];
 logic [D_W-1:0] in_w_ff [0:SA_C-1][0:SA_C-1];
 
 
-always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
-    if(!I_ASYN_RSTN | I_START_FLAG)begin
+always_ff@(posedge I_CLK or negedge I_RST_N)begin
+    if(!I_RST_N | I_START_FLAG)begin
         count <= 'b0;
     end else if(matshift_over)begin
         if(count < 10'd31)begin //31==16*2-1
@@ -69,8 +69,8 @@ always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
     end
 end
 
-always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
-    if(!I_ASYN_RSTN | I_START_FLAG)begin
+always_ff@(posedge I_CLK or negedge I_RST_N)begin
+    if(!I_RST_N | I_START_FLAG)begin
         state     <= S_CALC;
         O_OUT_VLD <= 0;
     end else begin
@@ -106,8 +106,8 @@ generate
         assign input_x[i] = in_x_ff[i][0];
         for(genvar j=0;j<i+1;j=j+1)begin
             if(j == i)begin
-                always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
-                    if(!I_ASYN_RSTN | I_START_FLAG)begin
+                always_ff@(posedge I_CLK or negedge I_RST_N)begin
+                    if(!I_RST_N | I_START_FLAG)begin
                         in_x_ff[i][j] <= 'b0;
                     end else if(O_PE_SHIFT)begin
                         in_x_ff[i][j] <= x_vector[i];
@@ -116,8 +116,8 @@ generate
                     end
                 end
             end else begin
-                always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
-                    if(!I_ASYN_RSTN | I_START_FLAG)begin
+                always_ff@(posedge I_CLK or negedge I_RST_N)begin
+                    if(!I_RST_N | I_START_FLAG)begin
                         in_x_ff[i][j] <= 'b0;
                     end else if(O_PE_SHIFT)begin
                         in_x_ff[i][j] <= in_x_ff[i][j+1];
@@ -135,8 +135,8 @@ generate
         assign input_w[i] = in_w_ff[i][0];
         for(genvar j=0;j<i+1;j=j+1)begin
             if(j == i)begin
-                always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
-                    if(!I_ASYN_RSTN | I_START_FLAG)begin
+                always_ff@(posedge I_CLK or negedge I_RST_N)begin
+                    if(!I_RST_N | I_START_FLAG)begin
                         in_w_ff[i][j] <= 'b0;
                     end else if(O_PE_SHIFT)begin
                         in_w_ff[i][j] <= w_vector[i];
@@ -145,8 +145,8 @@ generate
                     end
                 end
             end else begin
-                always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
-                    if(!I_ASYN_RSTN | I_START_FLAG)begin
+                always_ff@(posedge I_CLK or negedge I_RST_N)begin
+                    if(!I_RST_N | I_START_FLAG)begin
                         in_w_ff[i][j] <= 'b0;
                     end else if(O_PE_SHIFT)begin
                         in_w_ff[i][j] <= in_w_ff[i][j+1];
@@ -165,7 +165,7 @@ SA_mat_manager#(
     .W_C  (SA_C )
 )u_dut_SA_mat_manager(
     .I_CLK      (I_CLK        ),
-    .I_ASYN_RSTN(I_ASYN_RSTN  ),
+    .I_RST_N    (I_RST_N      ),
     .I_PE_SHIFT (O_PE_SHIFT   ),
     .I_START    (I_START_FLAG ),
     .I_M_DIM    (I_M_DIM      ),
@@ -182,7 +182,7 @@ SA #(
     .SA_C        (SA_C        )
 ) u_SA (
     .I_CLK       (I_CLK       ),
-    .I_ASYN_RSTN (I_ASYN_RSTN ),
+    .I_RST_N     (I_RST_N     ),
     .I_START_FLAG(I_START_FLAG),
     .I_END_FLAG  (O_OUT_VLD   ),
     .I_X         (input_x     ),//input x(from left)

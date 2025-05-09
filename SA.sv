@@ -28,7 +28,7 @@ module SA #(
 )
 (
     input  logic           I_CLK                              ,
-    input  logic           I_ASYN_RSTN                        ,
+    input  logic           I_RST_N                            ,
     input  logic           I_START_FLAG                       ,
     input  logic           I_END_FLAG                         ,
     input  logic [D_W-1:0] I_X          [0:SA_R-1]            ,//input x(from left)
@@ -47,8 +47,8 @@ logic                        pe00_vld  ;
 
 assign O_SHIFT = pe00_vld;
 
-always_ff@(posedge I_CLK or negedge I_ASYN_RSTN) begin
-    if(!I_ASYN_RSTN | I_START_FLAG)begin
+always_ff@(posedge I_CLK or negedge I_RST_N) begin
+    if(!I_RST_N | I_START_FLAG)begin
         x_vld <= 0;
     end else begin
         if(I_END_FLAG)begin
@@ -69,7 +69,7 @@ generate                                                //SA_R(i)|             S
                     .D_W(D_W)
                 )u_PE(
                     .I_CLK      (I_CLK  ),
-                    .I_ASYN_RSTN(I_ASYN_RSTN),
+                    .I_ASYN_RSTN(I_RST_N),
                     .I_SYNC_RSTN(!I_START_FLAG),
                     .I_VLD      (x_vld),
                     .I_X        (I_X[0]),//input x(from left)
@@ -86,7 +86,7 @@ generate                                                //SA_R(i)|             S
                     .D_W(D_W)
                 )u_PE(
                     .I_CLK      (I_CLK  ),
-                    .I_ASYN_RSTN(I_ASYN_RSTN),
+                    .I_ASYN_RSTN(I_RST_N),
                     .I_SYNC_RSTN(!I_START_FLAG),
                     .I_VLD      (x_vld),
                     .I_X        (I_X[i]),//input x(from left)
@@ -102,7 +102,7 @@ generate                                                //SA_R(i)|             S
                     .D_W(D_W)
                 ) u_PE(
                     .I_CLK      (I_CLK  ),
-                    .I_ASYN_RSTN(I_ASYN_RSTN),
+                    .I_ASYN_RSTN(I_RST_N),
                     .I_SYNC_RSTN(!I_START_FLAG),
                     .I_VLD      (x_vld),
                     .I_X        (x_io_matrix[0][j-1]),//input x(from left)
@@ -118,7 +118,7 @@ generate                                                //SA_R(i)|             S
                     .D_W(D_W)
                 )u_PE(
                     .I_CLK      (I_CLK  ),
-                    .I_ASYN_RSTN(I_ASYN_RSTN),
+                    .I_ASYN_RSTN(I_RST_N),
                     .I_SYNC_RSTN(!I_START_FLAG),
                     .I_VLD      (x_vld),
                     .I_X        (x_io_matrix[i][j-1]),//input x(from left)

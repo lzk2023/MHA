@@ -4,13 +4,8 @@ module tb_attention(
 );
 
 bit                I_CLK        ;
-bit                I_ASYN_RSTN  ;
-bit                I_SYNC_RSTN  ;
+bit                I_RST_N  ;
 bit                I_ATTN_START ;
-
-//bit [8-1:0] Q_MATRIX [0:16-1][0:128-1];
-//bit [8-1:0] K_MATRIX [0:16-1][0:128-1];
-//bit [8-1:0] V_MATRIX [0:16-1][0:128-1];
 
 logic                O_SA_START ;
 logic [7:0] O_MAT_1 [0:15][0:127]   ;
@@ -38,8 +33,7 @@ attention#(
     .D_K   (128)        //Q,K,V column num（dimention/h_num)
 )u_dut_attention(
     .I_CLK          (I_CLK        ),
-    .I_ASYN_RSTN    (I_ASYN_RSTN  ),
-    .I_SYNC_RSTN    (I_SYNC_RSTN  ),
+    .I_RST_N        (I_RST_N      ),
     .I_ATTN_START   (I_ATTN_START ),
     .I_PE_SHIFT     (I_PE_SHIFT   ),//connect to SA_wrapper O_PE_SHIFT
     //.I_MAT_Q        (Q_MATRIX     ),
@@ -65,7 +59,7 @@ attention#(
 
 bram_manager u_bram_manager(
     .I_CLK         (I_CLK         ), 
-    .I_RST_N       (I_ASYN_RSTN   ), 
+    .I_RST_N       (I_RST_N       ), 
     .I_RD_ENA      (O_RD_ENA      ),
     .I_WR_ENA      (O_WR_ENA      ),
     .I_SEL         (O_BRAM_BLK_SEL),//sel,addr:{[2:0],[5:0]} high_addr to choose Q,K,V,low_addr to choose line
@@ -81,7 +75,7 @@ SA_wrapper#(
     .SA_C       (16        )   //SA_COLUMN,     
 ) u_dut_SA_top(
     .I_CLK          (I_CLK        ),
-    .I_ASYN_RSTN    (I_ASYN_RSTN  ),
+    .I_RST_N        (I_RST_N      ),
     .I_START_FLAG   (O_SA_START   ),
     .I_M_DIM        (O_M_DIM      ),//
     .I_X_MATRIX     (O_MAT_1      ),//input x(from left)     
@@ -94,11 +88,10 @@ SA_wrapper#(
 always #5 I_CLK = ~I_CLK;
 initial begin
     I_CLK        = 0;
-    I_ASYN_RSTN  = 0;
-    I_SYNC_RSTN  = 1;
+    I_RST_N      = 0;
     I_ATTN_START = 0;
     #100
-    I_ASYN_RSTN  = 1;
+    I_RST_N      = 1;
     I_ATTN_START = 1;
     //for(int i=0;i<16;i=i+1)begin
     //    for(int i_1=0;i_1<8;i_1=i_1+1)begin

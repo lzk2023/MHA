@@ -15,8 +15,7 @@ module attention#(
 )(
     //*******************main ports*******************//
     input  logic           I_CLK                            ,
-    input  logic           I_ASYN_RSTN                      ,
-    input  logic           I_SYNC_RSTN                      ,
+    input  logic           I_RST_N                          ,
     input  logic           I_ATTN_START                     ,
     input  logic           I_PE_SHIFT                       ,//connect to SA_wrapper O_PE_SHIFT
     //input  logic [D_W-1:0] I_MAT_Q     [0:DIM-1][0:D_K-1]   ,//load tiling Q
@@ -70,8 +69,6 @@ enum logic [1:0]{
 
 logic [7:0]  i_softmax_m;//old mi
 logic [7:0]  o_softmax_m;//new mi
-assign i_softmax_m = 0;
-assign i_softmax_l = 0;
 logic [15:0] i_softmax_l;//old li
 logic [15:0] o_softmax_l;//new li
 logic [7:0]  mi_old[0:15];
@@ -84,7 +81,8 @@ logic coef_upd_ena;
 logic coef_upd_vld;
 logic [7:0] coef_matrix [0:SA_R-1][0:SA_C-1];
 
-
+logic [5:0]     sel_q_o;//  1024/16 = 64,select tiling Q,O,mi,li
+logic [5:0]     sel_k_v;//  1024/16 = 64,select tiling K,V
 logic [D_W-1:0] key_data_matrix_transpose [0:D_K-1][0:DIM-1];   //matrix:K^T
 logic [D_W-1:0] scale_matrix [0:SA_R-1][0:SA_C-1];              //matrix:scale(*1/sqrt(d_k))
 
@@ -98,6 +96,9 @@ logic [D_W-1:0] matrix_adder_in  [0:SA_R-1][0:SA_C-1];
 logic [D_W-1:0] matrix_adder_out [0:SA_R-1][0:SA_C-1];
 
 //////////////////////////////////////////////////////////////////////
+
+assign i_softmax_m = mi_old[sel_dim];
+assign i_softmax_l = li_old[sel_dim];
 
 generate      //matrix transpose
     for(genvar i=0;i<DIM;i=i+1)begin
@@ -120,14 +121,16 @@ generate      //assign matrix scale
 endgenerate
 //////////////////////////////////////////////////////////////////////
 
-always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
-    if(!I_ASYN_RSTN | !I_SYNC_RSTN)begin
+always@(posedge I_CLK or negedge I_RST_N)begin
+    if(!I_RST_N)begin
         state         <= S_IDLE        ;
         state_load    <= S_LOAD_Q      ;
         m_reg         <= '{default:'b0};
         l_reg         <= '{default:'b0};
         mi_old        <= '{default:'b0};
         li_old        <= '{default:'b0};
+        sel_q_o       <= 6'd0          ;
+        sel_k_v       <= 6'd0          ;
         O_RD_ENA      <= 0             ;
         O_WR_ENA      <= 0             ;
         O_BRAM_BLK_SEL<= 0             ;
@@ -145,7 +148,9 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
             S_IDLE    :begin
                 if(I_ATTN_START)begin
                     state       <= S_LOAD_Q_K;
-                    O_SA_START  <= 0       ;
+                    O_SA_START  <= 0         ;
+                    sel_q_o     <= 6'd0      ;
+                    sel_k_v     <= 6'd0      ;
                 end else begin
                     state       <= state   ;
                     O_MAT_1     <= '{default:'b0}       ;
@@ -164,7 +169,7 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                         end else begin
                             O_RD_ENA      <= 1;
                             O_BRAM_BLK_SEL[7:6] <= 2'b01;//select K
-                            O_BRAM_BLK_SEL[5:0] <= 6'b00;
+                            O_BRAM_BLK_SEL[5:0] <= sel_k_v;
                         end
                     end
                     S_K_TRANS:begin
@@ -175,14 +180,14 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                         if(I_BRAM_RD_VLD)begin
                             state      <= S_CLEAR0;
                             state_load <= S_LOAD_K;
-                            mi_old     <= m_reg[0:15];//store mi,li
-                            li_old     <= l_reg[0:15];//store mi,li
+                            mi_old     <= m_reg[sel_q_o*16 +: 16];//store mi,li
+                            li_old     <= l_reg[sel_q_o*16 +: 16];//store mi,li
                             O_MAT_1    <= I_BRAM_RD_MAT;
                             O_RD_ENA   <= 0;
                         end else begin
                             O_RD_ENA      <= 1;
                             O_BRAM_BLK_SEL[7:6] <= 2'b00;//select Q
-                            O_BRAM_BLK_SEL[5:0] <= 6'b00;
+                            O_BRAM_BLK_SEL[5:0] <= sel_q_o;
                         end
                     end
                 endcase
@@ -260,7 +265,7 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                 end else begin
                     O_RD_ENA      <= 1;
                     O_BRAM_BLK_SEL[7:6] <= 2'b10;//select V
-                    O_BRAM_BLK_SEL[5:0] <= 6'b00;
+                    O_BRAM_BLK_SEL[5:0] <= sel_k_v;
                 end
             end
             S_CLEAR3  :begin
@@ -305,7 +310,7 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                 end else begin
                     O_RD_ENA            <= 1;
                     O_BRAM_BLK_SEL[7:6] <= 2'b11;//select O
-                    O_BRAM_BLK_SEL[5:0] <= 6'b00;
+                    O_BRAM_BLK_SEL[5:0] <= sel_q_o;
                 end
             end
             S_CLEAR4  :begin
@@ -318,6 +323,7 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
                     if(sel_dim == 5'd7)begin
                         state       <= S_CLEAR5   ;
                         O_SA_START  <= 0          ;
+                        sel_dim     <= 0          ;
                         for(int y=0;y<SA_R;y=y+1)begin
                             O_ATT_DATA[y][sel_dim*16 +: SA_C] <= matrix_adder_out[y]  ;
                         end
@@ -345,21 +351,35 @@ always@(posedge I_CLK or negedge I_ASYN_RSTN)begin
             end
             S_O_WRMEM :begin
                 if(I_BRAM_WR_DONE)begin
-                    state      <= S_IDLE;
-                    O_WR_ENA   <= 0;
-                    O_DATA_VLD <= 1;
+                    O_WR_ENA   <= 0          ;
+                    if(sel_q_o == 6'd63)begin
+                        if(sel_k_v == 6'd63)begin
+                            sel_q_o    <= 6'd0       ;
+                            sel_k_v    <= 6'd0       ;
+                            state      <= S_IDLE     ;
+                            O_DATA_VLD <= 1          ;
+                        end else begin
+                            sel_q_o    <= 6'd0       ;
+                            sel_k_v    <= sel_k_v + 1;
+                            state      <= S_LOAD_Q_K ;
+                        end
+                    end else begin
+                        sel_q_o    <= sel_q_o + 1;
+                        sel_k_v    <= sel_k_v    ;
+                        state      <= S_LOAD_Q_K ;
+                    end
                 end else begin
-                    O_WR_ENA      <= 1;
+                    O_WR_ENA            <= 1    ;
                     O_BRAM_BLK_SEL[7:6] <= 2'b11;//select O
-                    O_BRAM_BLK_SEL[5:0] <= 6'b00;
+                    O_BRAM_BLK_SEL[5:0] <= sel_q_o;
                 end
             end
         endcase
     end
 end
 
-always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
-    if(!I_ASYN_RSTN)begin
+always_ff@(posedge I_CLK or negedge I_RST_N)begin
+    if(!I_RST_N)begin
         coef_upd_ena <= 0;
         coefficient  <= '{default:'b0};
     end else begin
@@ -397,7 +417,7 @@ safe_softmax#(
     .NUM(16) //dimention
 )u_softmax_for_attn(
     .I_CLK      (I_CLK          ),
-    .I_RST_N    (I_ASYN_RSTN    ),
+    .I_RST_N    (I_RST_N        ),
     .I_START    (softmax_start  ),//keep when calculate
     .I_DATA     (O_MAT_1[sel_dim][0:SA_C-1]),
     .I_X_MAX    (i_softmax_m    ),
@@ -413,12 +433,12 @@ o_matrix_upd#(
     .TIL(16) //tiling row == 16
 )u_o_matrix_upd(
     .I_CLK        (I_CLK        ),
-    .I_RST_N      (I_ASYN_RSTN  ),
+    .I_RST_N      (I_RST_N      ),
     .I_ENA        (coef_upd_ena ),//keep
     .I_LI_OLD     (li_old       ),
     .I_MI_OLD     (mi_old       ),
-    .I_LI_NEW     (l_reg[0:15]  ),
-    .I_MI_NEW     (m_reg[0:15]  ),
+    .I_LI_NEW     (l_reg[sel_q_o*16 +: 16]),
+    .I_MI_NEW     (m_reg[sel_q_o*16 +: 16]),
     .O_VLD        (coef_upd_vld ),
     .O_COEFFICIENT(o_coefficient)
 );

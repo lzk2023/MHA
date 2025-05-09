@@ -10,7 +10,7 @@ module SA_mat_manager#(
     parameter W_C   = 16
 )(
     input  logic           I_CLK                      ,
-    input  logic           I_ASYN_RSTN                ,
+    input  logic           I_RST_N                    ,
     input  logic           I_PE_SHIFT                 ,
     input  logic           I_START                    ,
     input  logic [7:0]     I_M_DIM                    ,//max:128
@@ -36,8 +36,8 @@ generate
     end
 endgenerate
 
-always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
-    if(!I_ASYN_RSTN | I_START)begin
+always_ff@(posedge I_CLK or negedge I_RST_N)begin
+    if(!I_RST_N | I_START)begin
         sel   <= 'b0;
     end else begin
         if(I_PE_SHIFT)begin
@@ -53,8 +53,8 @@ always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
 end
 
 //assign O_OVER = (sel == I_M_DIM) ? 1 : 0;
-always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
-    if(!I_ASYN_RSTN | I_START)begin
+always_ff@(posedge I_CLK or negedge I_RST_N)begin
+    if(!I_RST_N | I_START)begin
         O_OVER <= 0;
     end else begin
         if(sel == I_M_DIM)begin

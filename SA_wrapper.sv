@@ -28,10 +28,9 @@ module SA_wrapper#(
 ) (
     input  logic           I_CLK                              ,
     input  logic           I_RST_N                            ,
-    input  logic           I_START_FLAG                       ,
-    input  logic [7:0]     I_M_DIM                            ,//max:128                                         SA_C    
-    input  logic [D_W-1:0] I_X_MATRIX   [0:SA_R-1][0:127]     ,//input x(from left)        matrix x:     x|<-------------->|           //X_C == W_R == M_DIM,dimention of the 2 multiply matrix.
-    input  logic [D_W-1:0] I_W_MATRIX   [0:127][0:SA_C-1]     ,//input weight(from up)                   |
+    input  logic           I_START_FLAG                       ,//                                               SA_C    
+    input  logic [D_W-1:0] I_X_MATRIX   [0:SA_R-1][0:SA_C-1]  ,//input x(from left)        matrix x:     x|<-------------->|           //X_C == W_R == M_DIM,dimention of the 2 multiply matrix.
+    input  logic [D_W-1:0] I_W_MATRIX   [0:SA_R-1][0:SA_C-1]  ,//input weight(from up)                   |
     input  logic [D_W-1:0] I_DATA_LOAD  [0:SA_R-1][0:SA_C-1]  ,//                                   SA_R |
     output logic           O_OUT_VLD                          ,//  OUT.shape = (X_R,SA_C)                |
     output logic           O_PE_SHIFT                         ,//                                        x
@@ -168,7 +167,6 @@ SA_mat_manager#(
     .I_RST_N    (I_RST_N      ),
     .I_PE_SHIFT (O_PE_SHIFT   ),
     .I_START    (I_START_FLAG ),
-    .I_M_DIM    (I_M_DIM      ),
     .I_X_MATRIX (I_X_MATRIX   ),
     .I_W_MATRIX (I_W_MATRIX   ),
     .O_OVER     (matshift_over),

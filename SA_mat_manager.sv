@@ -13,9 +13,8 @@ module SA_mat_manager#(
     input  logic           I_RST_N                    ,
     input  logic           I_PE_SHIFT                 ,
     input  logic           I_START                    ,
-    input  logic [7:0]     I_M_DIM                    ,//max:128
-    input  logic [D_W-1:0] I_X_MATRIX [0:X_R-1][0:127],//X_C == W_R == 128,dimention of the 2 multiply matrix.
-    input  logic [D_W-1:0] I_W_MATRIX [0:127][0:W_C-1],
+    input  logic [D_W-1:0] I_X_MATRIX [0:X_R-1][0:W_C-1],
+    input  logic [D_W-1:0] I_W_MATRIX [0:X_R-1][0:W_C-1],
     output logic           O_OVER                     ,
     output logic [D_W-1:0] O_X_VECTOR [0:X_R-1]       ,
     output logic [D_W-1:0] O_W_VECTOR [0:W_C-1]           
@@ -26,13 +25,13 @@ logic  [15:0] sel  ;
 ///////////////////////////select matrix out/////////////////////////
 generate 
     for(genvar i=0;i<X_R;i=i+1)begin
-        assign O_X_VECTOR[i] = (sel >= I_M_DIM) ? 0 : I_X_MATRIX[i][I_M_DIM-1-sel];
+        assign O_X_VECTOR[i] = (sel >= 16'd16) ? 0 : I_X_MATRIX[i][16-1-sel];
     end
 endgenerate
 
 generate 
     for(genvar i=0;i<W_C;i=i+1)begin
-        assign O_W_VECTOR[i] = (sel >= I_M_DIM) ? 0 : I_W_MATRIX[I_M_DIM-1-sel][i];
+        assign O_W_VECTOR[i] = (sel >= 16'd16) ? 0 : I_W_MATRIX[16-1-sel][i];
     end
 endgenerate
 
@@ -41,7 +40,7 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
         sel   <= 'b0;
     end else begin
         if(I_PE_SHIFT)begin
-            if(sel<I_M_DIM)begin
+            if(sel<16'd16)begin
                 sel   <= sel + 1;
             end else begin
                 sel   <= sel;
@@ -57,7 +56,7 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
     if(!I_RST_N | I_START)begin
         O_OVER <= 0;
     end else begin
-        if(sel == I_M_DIM)begin
+        if(sel == 16'd16)begin
             O_OVER <= 1;
         end else begin
             O_OVER <= 0;

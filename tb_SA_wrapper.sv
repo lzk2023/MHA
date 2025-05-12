@@ -8,13 +8,13 @@ localparam SA_R   = 16;
 localparam SA_C   = 16;
 
 bit                     I_CLK        ;
-bit                     I_ASYN_RSTN  ;
+bit                     I_RST_N      ;
 bit                     I_START_FLAG ;
 
 logic                        O_PE_SHIFT   ;
 logic                        O_OUT_VLD    ;
-bit [D_W-1:0] X_MATRIX [0:SA_R-1][0:127];
-bit [D_W-1:0] W_MATRIX [0:127][0:SA_C-1];
+bit [D_W-1:0] X_MATRIX [0:SA_R-1][0:SA_C-1];
+bit [D_W-1:0] W_MATRIX [0:SA_R-1][0:SA_C-1];
 bit [D_W-1:0] D_MATRIX [0:SA_R-1][0:SA_C-1];
 bit [D_W-1:0] O_MATRIX [0:SA_R-1][0:SA_C-1];
 
@@ -24,9 +24,8 @@ SA_wrapper#(
     .SA_C       (SA_C         )   //SA_COLUMN,     
 ) u_dut_SA_top(
     .I_CLK          (I_CLK        ),
-    .I_ASYN_RSTN    (I_ASYN_RSTN  ),
+    .I_RST_N        (I_RST_N      ),
     .I_START_FLAG   (I_START_FLAG ),//
-    .I_M_DIM        (8'd16),
     .I_X_MATRIX     (X_MATRIX     ),//input x(from left)     
     .I_W_MATRIX     (W_MATRIX     ),//input weight(from ddr)             
     .I_DATA_LOAD    (D_MATRIX     ),
@@ -39,7 +38,7 @@ always #5 I_CLK = ~I_CLK;
 
 initial begin
     #100
-    I_ASYN_RSTN  = 1;
+    I_RST_N      = 1;
     I_START_FLAG = 1;
     for(int i=0;i<16;i=i+1)begin
         X_MATRIX[i][0:15] = '{8'h00,8'h01,8'h02,8'h03,8'h04,8'h05,8'h06,8'h07,8'h08,8'h09,8'h0a,8'h0b,8'h0c,8'h0d,8'h0e,8'h0f};

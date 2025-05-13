@@ -46,26 +46,19 @@ localparam S_DK_VALUE = 8'd3;//0.08838*32,1/(sqrt(dk=128))
 enum logic [3:0] {
     S_IDLE     = 4'b0000,
     S_LOAD_Q_K = 4'b0001,//load Q,K from bram
-    S_CLEAR0   = 4'b0011,
-    S_Q_K      = 4'b0010,//S = Q*K^T
-    S_CLEAR1   = 4'b0110,
-    S_SCALE    = 4'b0111,//scale: S/d_k
-    S_CLEAR2   = 4'b0101,
-    S_SOFTMAX  = 4'b0100,//P = softmax(S/d_k)
-    S_LOAD_V   = 4'b1100,
-    S_CLEAR3   = 4'b1101,
-    S_P_V      = 4'b1111,//O = P*V
-    S_LOAD_O   = 4'b1110,
-    S_CLEAR4   = 4'b1010,
-    S_O_UPD    = 4'b1011,//upd O_new = (diag(li_new)^-1 * diag(li)*exp(mi-mi_new)) * O_old + O
-    S_CLEAR5   = 4'b1001,
-    S_O_WRMEM  = 4'b1000
+    S_Q_K      = 4'b0011,//S = Q*K^T
+    S_SCALE    = 4'b0010,//scale: S/d_k
+    S_SOFTMAX  = 4'b0110,//P = softmax(S/d_k)
+    S_LOAD_V   = 4'b0111,
+    S_P_V      = 4'b0101,//O = P*V
+    S_LOAD_O   = 4'b0100,
+    S_O_UPD    = 4'b1100,//upd O_new = (diag(li_new)^-1 * diag(li)*exp(mi-mi_new)) * O_old + O
+    S_O_WRMEM  = 4'b1101
 } state;
 
-enum logic [1:0]{
-    S_LOAD_K  = 2'b00,
-    S_K_TRANS = 2'b01,
-    S_LOAD_Q  = 2'b11
+enum logic [0:0]{
+    S_LOAD_K  = 1'b0,
+    S_LOAD_Q  = 1'b1
 } state_load;
 
 logic [7:0]  i_softmax_m;//old mi
@@ -105,7 +98,7 @@ assign i_softmax_l = li_old[sel_dim];
 generate      //matrix transpose
     for(genvar i=0;i<SA_R;i=i+1)begin
         for(genvar j=0;j<SA_C;j=j+1)begin
-            assign key_data_matrix_transpose[j][i] = O_MAT_1[i][j];
+            assign key_data_matrix_transpose[j][i] = I_BRAM_RD_MAT[i][j];
         end
     end 
 endgenerate
@@ -169,8 +162,8 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                     S_LOAD_K :begin
                         if(I_BRAM_RD_VLD)begin
                             state      <= S_LOAD_Q_K;
-                            state_load <= S_K_TRANS;
-                            O_MAT_1    <= I_BRAM_RD_MAT;
+                            state_load <= S_LOAD_Q;
+                            O_MAT_2    <= key_data_matrix_transpose;
                             O_RD_ENA   <= 0;
                         end else begin
                             O_RD_ENA        <= 1;
@@ -179,14 +172,11 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                             O_BRAM_SEL_COL  <= sel_col;
                         end
                     end
-                    S_K_TRANS:begin
-                        state_load   <= S_LOAD_Q;
-                        O_MAT_2      <= key_data_matrix_transpose;
-                    end
                     S_LOAD_Q :begin
                         if(I_BRAM_RD_VLD)begin
-                            state      <= S_CLEAR0;
+                            state      <= S_Q_K;
                             state_load <= S_LOAD_K;
+                            O_SA_START  <= 1      ;
                             mi_old     <= m_reg[sel_q_o*16 +: 16];//store mi,li
                             li_old     <= l_reg[sel_q_o*16 +: 16];//store mi,li
                             O_MAT_1    <= I_BRAM_RD_MAT;
@@ -200,15 +190,11 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                     end
                 endcase
             end
-            S_CLEAR0  :begin
-                state       <= S_Q_K  ;
-                O_SA_START  <= 1      ;
-                //O_M_DIM     <= 8'd128 ;
-            end
             S_Q_K     :begin
                 if(I_SA_VLD)begin
                     if(sel_col == 3'd7)begin
-                        state       <= S_CLEAR1    ;
+                        state       <= S_SCALE     ;
+                        O_SA_START  <= 1           ;
                         sel_col     <= 0           ;
                         O_MAT_1     <= I_SA_RESULT ;//S
                         O_MAT_2     <= scale_matrix;//diag(1/sqrt(d_k))
@@ -226,14 +212,10 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                     O_SA_START  <= 0       ;
                 end
             end
-            S_CLEAR1  :begin
-                state       <= S_SCALE;
-                O_SA_START  <= 1      ;
-                //O_M_DIM     <= 8'd16  ;
-            end
             S_SCALE   :begin
                 if(I_SA_VLD)begin
-                    state       <= S_CLEAR2   ;
+                    state       <= S_SOFTMAX  ;
+                    softmax_start <= 1        ;
                     O_MAT_1     <= I_SA_RESULT;//S/sqrt(d_k)
                     //O_MAT_2     <= '{default:'b0}          ;//??
                     O_SA_START  <= 0          ;
@@ -244,21 +226,16 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                     O_SA_START  <= 0          ;
                 end
             end
-            S_CLEAR2  :begin
-                state         <= S_SOFTMAX;
-                O_SA_START    <= 0        ;
-                //O_M_DIM       <= 0        ;
-                softmax_start <= 1        ;
-            end
             S_SOFTMAX :begin
                 if(softmax_out_vld)begin
                     p_matrix_reg[sel_dim][0:SA_C-1] <= softmax_out ;
                     m_reg[sel_dim] <= o_softmax_m;//upd mi,li
                     l_reg[sel_dim] <= o_softmax_l;//upd mi,li
                     if(sel_dim == 5'd15)begin
-                        state       <= S_LOAD_V   ;
-                        sel_dim     <= 0          ;
-                        O_SA_START  <= 0          ;
+                        state       <= S_LOAD_V;
+                        sel_dim     <= 0       ;
+                        O_SA_START  <= 0       ;
+                        softmax_start <= 0     ;
                     end else begin
                         sel_dim     <= sel_dim + 1;
                     end
@@ -269,7 +246,8 @@ always@(posedge I_CLK or negedge I_RST_N)begin
             end
             S_LOAD_V  :begin
                 if(I_BRAM_RD_VLD)begin
-                    state      <= S_CLEAR3;
+                    state      <= S_P_V;
+                    O_SA_START <= 1    ;
                     O_MAT_1    <= I_BRAM_RD_MAT;//load tiling V to O_MAT_1
                     O_MAT_2    <= p_matrix_reg ;//load P
                     O_RD_ENA   <= 0;
@@ -279,12 +257,6 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                     O_BRAM_SEL_LINE <= sel_k_v;
                     O_BRAM_SEL_COL  <= sel_col;
                 end
-            end
-            S_CLEAR3  :begin
-                state       <= S_P_V    ;
-                O_SA_START  <= 1        ;
-                //O_M_DIM     <= 8'd16    ;
-                softmax_start <= 0      ;
             end
             S_P_V     :begin
                 if(I_SA_VLD)begin
@@ -302,7 +274,8 @@ always@(posedge I_CLK or negedge I_RST_N)begin
             end
             S_LOAD_O  :begin
                 if(I_BRAM_RD_VLD)begin
-                    state      <= S_CLEAR4;
+                    state      <= S_O_UPD;
+                    O_SA_START <= 1      ;
                     O_MAT_1    <= I_BRAM_RD_MAT;
                     //O_MAT_2     <= coef_matrix;
                     O_RD_ENA   <= 0;
@@ -313,14 +286,9 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                     O_BRAM_SEL_COL  <= sel_col;
                 end
             end
-            S_CLEAR4  :begin
-                state       <= S_O_UPD  ;
-                O_SA_START  <= 1        ;
-                //O_M_DIM     <= 8'd16        ;
-            end
             S_O_UPD   :begin
                 if(I_SA_VLD)begin
-                    state       <= S_CLEAR5   ;
+                    state       <= S_O_WRMEM  ;
                     O_SA_START  <= 0          ;
                     O_ATT_DATA  <= matrix_adder_out;
                 end else begin
@@ -329,11 +297,6 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                     O_MAT_2     <= O_MAT_2    ;//matrix: coefficient
                     O_SA_START  <= 0          ;
                 end
-            end
-            S_CLEAR5  :begin
-                state       <= S_O_WRMEM  ;
-                O_SA_START  <= 0          ;
-                //O_M_DIM     <= 0        ;
             end
             S_O_WRMEM :begin
                 if(I_BRAM_WR_DONE)begin

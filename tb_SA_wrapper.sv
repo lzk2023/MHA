@@ -48,10 +48,9 @@ initial begin
     end
     #10
     I_START_FLAG = 0;
-    #1000
 
-
-
+    wait(O_OUT_VLD)
+    @(posedge I_CLK)
     I_START_FLAG  = 1;
     D_MATRIX = '{default:8'h01};
     for(int j=0;j<16;j=j+1)begin
@@ -63,7 +62,7 @@ initial begin
             end
         end
     end
-    #10
+    @(posedge I_CLK)
     I_START_FLAG  = 0;
     #1000
     $finish;

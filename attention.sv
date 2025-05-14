@@ -50,10 +50,11 @@ enum logic [3:0] {
     S_SCALE    = 4'b0010,//scale: S/d_k
     S_SOFTMAX  = 4'b0110,//P = softmax(S/d_k)
     S_LOAD_V   = 4'b0111,
-    S_P_V      = 4'b0101,//O = P*V
-    S_LOAD_O   = 4'b0100,
-    S_O_UPD    = 4'b1100,//upd O_new = (diag(li_new)^-1 * diag(li)*exp(mi-mi_new)) * O_old + O
-    S_O_WRMEM  = 4'b1101
+    S_COEF_CAL = 4'b0101,
+    S_P_V      = 4'b0100,//O = P*V
+    S_LOAD_O   = 4'b1100,
+    S_O_UPD    = 4'b1101,//upd O_new = (diag(li_new)^-1 * diag(li)*exp(mi-mi_new)) * O_old + O
+    S_O_WRMEM  = 4'b1111
 } state;
 
 enum logic [0:0]{
@@ -139,6 +140,8 @@ always@(posedge I_CLK or negedge I_RST_N)begin
         O_SA_START      <= 0             ;
         softmax_start   <= 0             ;
         sel_dim         <= 0             ;
+        coef_upd_ena    <= 0             ;
+        coefficient     <= '{default:'b0};
         O_DATA_VLD      <= 0             ;
         O_ATT_DATA      <= '{default:'b0};
     end else begin
@@ -246,7 +249,7 @@ always@(posedge I_CLK or negedge I_RST_N)begin
             end
             S_LOAD_V  :begin
                 if(I_BRAM_RD_VLD)begin
-                    state      <= S_P_V;
+                    state      <= S_COEF_CAL;
                     O_SA_START <= 1    ;
                     O_MAT_1    <= I_BRAM_RD_MAT;//load tiling V to O_MAT_1
                     O_MAT_2    <= p_matrix_reg ;//load P
@@ -256,6 +259,16 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                     O_BRAM_SEL_MAT  <= 2'b10;//select V
                     O_BRAM_SEL_LINE <= sel_k_v;
                     O_BRAM_SEL_COL  <= sel_col;
+                end
+            end
+            S_COEF_CAL:begin
+                if(coef_upd_vld)begin
+                    state        <= S_P_V;
+                    coef_upd_ena <= 0;
+                    coefficient  <= o_coefficient;
+                end else begin
+                    state        <= state;
+                    coef_upd_ena <= 1;
                 end
             end
             S_P_V     :begin
@@ -331,22 +344,6 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                 end
             end
         endcase
-    end
-end
-
-always_ff@(posedge I_CLK or negedge I_RST_N)begin
-    if(!I_RST_N)begin
-        coef_upd_ena <= 0;
-        coefficient  <= '{default:'b0};
-    end else begin
-        if(state == S_CLEAR3)begin
-            coef_upd_ena <= 1;
-        end else if(coef_upd_vld)begin
-            coef_upd_ena <= 0;
-            coefficient  <= o_coefficient;
-        end else begin
-            coef_upd_ena <= coef_upd_ena;
-        end
     end
 end
 

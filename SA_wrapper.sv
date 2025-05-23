@@ -20,173 +20,204 @@
 // Additional Comments:
 // 
 //////////////////////////////////////////////////////////////////////////////////
+//                                               SA_C    
+//input x(from left)        matrix x:     x|<-------------->| //X_C == W_R == M_DIM,dimention of the 2 multiply matrix.
+//input weight(from up)                   |
+//                                   SA_R |
+//  OUT.shape = (X_R,SA_C)                |
+//                                        x
+//////////////////////////////////////////////////////////////////////////////////
 
 module SA_wrapper#(
-    parameter D_W   = 8,  //Data_Width
-    parameter SA_R  = 16,  //SA_ROW,     SA.shape = (SA_R,SA_C)
-    parameter SA_C  = 16   //SA_COLUMN
+    parameter D_W   = 8 , //Data_Width
+    parameter SA_R  = 16, //SA_ROW,     SA.shape = (SA_R,SA_C)
+    parameter SA_C  = 16  //SA_COLUMN
 ) (
-    input  logic           I_CLK                              ,
-    input  logic           I_RST_N                            ,
-    input  logic           I_START_FLAG                       ,//                                               SA_C    
-    input  logic [D_W-1:0] I_X_MATRIX   [0:SA_R-1][0:SA_C-1]  ,//input x(from left)        matrix x:     x|<-------------->|           //X_C == W_R == M_DIM,dimention of the 2 multiply matrix.
-    input  logic [D_W-1:0] I_W_MATRIX   [0:SA_R-1][0:SA_C-1]  ,//input weight(from up)                   |
-    input  logic [D_W-1:0] I_DATA_LOAD  [0:SA_R-1][0:SA_C-1]  ,//                                   SA_R |
-    output logic           O_OUT_VLD                          ,//  OUT.shape = (X_R,SA_C)                |
-    output logic           O_PE_SHIFT                         ,//                                        x
-    output logic [D_W-1:0] O_OUT        [0:SA_R-1][0:SA_C-1]   
+    input  logic           I_CLK                                  ,
+    input  logic           I_RST_N                                ,
+    input  logic           I_LOAD_FLAG                            ,
+    input  logic [D_W-1:0] I_X_MATRIX         [0:SA_R-1][0:SA_C-1],
+    input  logic [D_W-1:0] I_W_MATRIX         [0:SA_R-1][0:SA_C-1],
+    output logic           O_INPUT_FIFO_EMPTY [0:SA_R-1]          ,
+    output logic           O_OUTPUT_FIFO_FULL [0:SA_C-1]          ,
+    output logic           O_LOAD_WEIGHT_VLD                      ,
+    output logic           O_OUT_VLD                              ,
+    output logic [D_W-1:0] O_OUT              [0:SA_R-1][0:SA_C-1] 
 );
 
-enum logic  [2:0] {
-    S_IDLE = 3'b001,
-    S_CALC = 3'b010,
-    S_END  = 3'b100 
-} state;
+logic [D_W-1:0] input_x       [0:SA_R-1];
+logic           input_fifo_en [0:SA_R-1];
+logic [D_W-1:0] output_d      [0:SA_C-1];
+logic           output_fifo_en[0:SA_C-1];
+logic           output_fifo_load_ff     ;
+logic [D_W-1:0] last_weight_ff [0:SA_R-1][0:SA_C-1];
 
-logic [D_W-1:0] input_x  [0:SA_R-1];
-logic [D_W-1:0] input_w  [0:SA_C-1];
-logic [D_W-1:0] x_vector [0:SA_R-1];
-logic [D_W-1:0] w_vector [0:SA_C-1];
-logic           matshift_over      ;
-
-logic [9:0]     count                       ;//15+16-1=30 clk,out_vld == 1
-logic [D_W-1:0] in_x_ff [0:SA_R-1][0:SA_R-1];
-logic [D_W-1:0] in_w_ff [0:SA_C-1][0:SA_C-1];
-
+logic [D_W-1:0] output_fifo_data [0:SA_R-1][0:SA_C-1];
+logic [D_W-1:0] out_data_transpose [0:SA_R-1][0:SA_C-1];
+always_ff@(posedge I_CLK or negedge I_RST_N)begin
+    if(!I_RST_N)begin
+        last_weight_ff <= '{default:'b0};
+    end else if(O_LOAD_WEIGHT_VLD)begin
+        last_weight_ff <= I_W_MATRIX;
+    end else begin
+        last_weight_ff <= last_weight_ff;
+    end
+end
 
 always_ff@(posedge I_CLK or negedge I_RST_N)begin
-    if(!I_RST_N | I_START_FLAG)begin
-        count <= 'b0;
-    end else if(matshift_over)begin
-        if(count < 10'd31)begin //31==16*2-1
-            count <= count + 1;
-        end else begin
-            count <= count;
+    if(!I_RST_N)begin
+        output_fifo_load_ff <= 1'b0;
+    end else begin
+        output_fifo_load_ff <= input_fifo_en[SA_R-1];
+    end
+end
+
+always_ff@(posedge I_CLK or negedge I_RST_N)begin
+    if(!I_RST_N)begin
+        out_data_transpose <= '{default:0};
+    end else begin
+        for(integer i=0;i<SA_R;i=i+1)begin
+            if(O_OUTPUT_FIFO_FULL[i])begin
+                out_data_transpose[i] <= output_fifo_data[i];
+            end else begin
+                out_data_transpose[i] <= out_data_transpose[i];
+            end
         end
-    end else begin
-        count <= 0;
     end
 end
-
 always_ff@(posedge I_CLK or negedge I_RST_N)begin
-    if(!I_RST_N | I_START_FLAG)begin
-        state     <= S_CALC;
-        O_OUT_VLD <= 0;
+    if(!I_RST_N)begin
+        O_OUT_VLD <= 1'b0;
+    end else if(O_OUTPUT_FIFO_FULL[SA_C-1])begin
+        O_OUT_VLD <= 1'b1;
     end else begin
-        case(state)
-            S_IDLE:begin
-                if(I_START_FLAG)begin
-                    state <= S_CALC;
-                    O_OUT_VLD <= 0;
-                end else begin
-                    state <= state;
-                    O_OUT_VLD <= O_OUT_VLD;
-                end
-            end
-            S_CALC:begin
-                if(count == 10'd31)begin//31==16*2-1
-                    state <= S_END;
-                    O_OUT_VLD <= 1;
-                end else begin
-                    state <= state;
-                    O_OUT_VLD <= 0;
-                end
-            end
-            S_END :begin
-                state <= S_IDLE;
-                O_OUT_VLD <= 0;
-            end
-        endcase
+        O_OUT_VLD <= 1'b0;
     end
 end
-
 generate
     for(genvar i=0;i<SA_R;i=i+1)begin
-        assign input_x[i] = in_x_ff[i][0];
-        for(genvar j=0;j<i+1;j=j+1)begin
-            if(j == i)begin
-                always_ff@(posedge I_CLK or negedge I_RST_N)begin
-                    if(!I_RST_N | I_START_FLAG)begin
-                        in_x_ff[i][j] <= 'b0;
-                    end else if(O_PE_SHIFT)begin
-                        in_x_ff[i][j] <= x_vector[i];
-                    end else begin
-                        in_x_ff[i][j] <= in_x_ff[i][j];
-                    end
-                end
-            end else begin
-                always_ff@(posedge I_CLK or negedge I_RST_N)begin
-                    if(!I_RST_N | I_START_FLAG)begin
-                        in_x_ff[i][j] <= 'b0;
-                    end else if(O_PE_SHIFT)begin
-                        in_x_ff[i][j] <= in_x_ff[i][j+1];
-                    end else begin
-                        in_x_ff[i][j] <= in_x_ff[i][j];
-                    end
-                end
-            end
+        for(genvar j=0;j<SA_C;j=j+1)begin
+            assign O_OUT[i][j] = out_data_transpose[j][i];
+        end
+    end
+endgenerate
+
+always_ff@(posedge I_CLK or negedge I_RST_N)begin
+    if(!I_RST_N)begin
+        O_LOAD_WEIGHT_VLD <= 1'b0;
+    end else if(I_LOAD_FLAG)begin
+        O_LOAD_WEIGHT_VLD <= 1'b0;
+    end else if(input_fifo_en[SA_R-3])begin
+        O_LOAD_WEIGHT_VLD <= 1'b1;
+    end else begin
+        O_LOAD_WEIGHT_VLD <= 1'b0;
+    end
+end
+
+generate
+    for(genvar i=0;i<SA_R;i=i+1)begin:SA_INPUT_FIFO_GEN
+        if(i==0)begin
+            SA_input_fifo#(
+            .DATA_WIDTH(8 ),
+            .FIFO_DEPTH(16)
+        )u_SA_input_fifo(
+            .I_CLK      (I_CLK      ),
+            .I_RST_N    (I_RST_N    ),
+            .I_LOAD_EN  (I_LOAD_FLAG),
+            .I_LOAD_DATA(I_X_MATRIX[i]),
+            .O_DATA     (input_x[i] ),
+            .O_LOAD_EN  (input_fifo_en[i]  ),
+            .O_EMPTY    (O_INPUT_FIFO_EMPTY[i])
+        );
+        end else if(i==SA_R-1)begin
+            SA_input_fifo#(
+            .DATA_WIDTH(8 ),
+            .FIFO_DEPTH(16)
+        )u_SA_input_fifo(
+            .I_CLK      (I_CLK      ),
+            .I_RST_N    (I_RST_N    ),
+            .I_LOAD_EN  (input_fifo_en[i-1]),
+            .I_LOAD_DATA(I_X_MATRIX[i]),
+            .O_DATA     (input_x[i] ),
+            .O_LOAD_EN  (input_fifo_en[i]  ),
+            .O_EMPTY    (O_INPUT_FIFO_EMPTY[i])
+        );
+        end else begin
+            SA_input_fifo#(
+            .DATA_WIDTH(8 ),
+            .FIFO_DEPTH(16)
+        )u_SA_input_fifo(
+            .I_CLK      (I_CLK      ),
+            .I_RST_N    (I_RST_N    ),
+            .I_LOAD_EN  (input_fifo_en[i-1]),
+            .I_LOAD_DATA(I_X_MATRIX[i]),
+            .O_DATA     (input_x[i] ),
+            .O_LOAD_EN  (input_fifo_en[i]  ),
+            .O_EMPTY    (O_INPUT_FIFO_EMPTY[i])
+        );
         end
     end
 endgenerate
 
 generate
-    for(genvar i=0;i<SA_C;i=i+1)begin
-        assign input_w[i] = in_w_ff[i][0];
-        for(genvar j=0;j<i+1;j=j+1)begin
-            if(j == i)begin
-                always_ff@(posedge I_CLK or negedge I_RST_N)begin
-                    if(!I_RST_N | I_START_FLAG)begin
-                        in_w_ff[i][j] <= 'b0;
-                    end else if(O_PE_SHIFT)begin
-                        in_w_ff[i][j] <= w_vector[i];
-                    end else begin
-                        in_w_ff[i][j] <= in_w_ff[i][j];
-                    end
-                end
-            end else begin
-                always_ff@(posedge I_CLK or negedge I_RST_N)begin
-                    if(!I_RST_N | I_START_FLAG)begin
-                        in_w_ff[i][j] <= 'b0;
-                    end else if(O_PE_SHIFT)begin
-                        in_w_ff[i][j] <= in_w_ff[i][j+1];
-                    end else begin
-                        in_w_ff[i][j] <= in_w_ff[i][j];
-                    end
-                end
-            end
+    for(genvar j=0;j<SA_C;j=j+1)begin:SA_OUTPUT_FIFO_GEN
+        if(j==0)begin
+            SA_output_fifo#(
+                .DATA_WIDTH(8 ),
+                .FIFO_DEPTH(16)
+            )u_SA_output_fifo(
+                .I_CLK      (I_CLK      ),
+                .I_RST_N    (I_RST_N    ),
+                .I_PUSH_EN  (output_fifo_load_ff  ),
+                .I_PUSH_DATA(output_d[j]),
+                .O_ALL_DATA (output_fifo_data[j] ),
+                .O_POP_DATA ( ),
+                .O_PUSH_EN  (output_fifo_en[j]),
+                .O_FULL     (O_OUTPUT_FIFO_FULL[j]     )
+            );
+        end else if(j==SA_C-1)begin
+            SA_output_fifo#(
+                .DATA_WIDTH(8 ),
+                .FIFO_DEPTH(16)
+            )u_SA_output_fifo(
+                .I_CLK      (I_CLK      ),
+                .I_RST_N    (I_RST_N    ),
+                .I_PUSH_EN  (output_fifo_en[j-1]),
+                .I_PUSH_DATA(output_d[j]),
+                .O_ALL_DATA (output_fifo_data[j] ),
+                .O_POP_DATA ( ),
+                .O_PUSH_EN  (output_fifo_en[j]),
+                .O_FULL     (O_OUTPUT_FIFO_FULL[j]     )
+            );
+        end else begin
+            SA_output_fifo#(
+                .DATA_WIDTH(8 ),
+                .FIFO_DEPTH(16)
+            )u_SA_output_fifo(
+                .I_CLK      (I_CLK      ),
+                .I_RST_N    (I_RST_N    ),
+                .I_PUSH_EN  (output_fifo_en[j-1]),
+                .I_PUSH_DATA(output_d[j]),
+                .O_ALL_DATA (output_fifo_data[j] ),
+                .O_POP_DATA ( ),
+                .O_PUSH_EN  (output_fifo_en[j]),
+                .O_FULL     (O_OUTPUT_FIFO_FULL[j]     )
+            );
         end
     end
 endgenerate
 
-SA_mat_manager#(
-    .D_W  (D_W  ),
-    .X_R  (SA_R ),
-    .W_C  (SA_C )
-)u_dut_SA_mat_manager(
-    .I_CLK      (I_CLK        ),
-    .I_RST_N    (I_RST_N      ),
-    .I_PE_SHIFT (O_PE_SHIFT   ),
-    .I_START    (I_START_FLAG ),
-    .I_X_MATRIX (I_X_MATRIX   ),
-    .I_W_MATRIX (I_W_MATRIX   ),
-    .O_OVER     (matshift_over),
-    .O_X_VECTOR (x_vector     ),
-    .O_W_VECTOR (w_vector     )
-);
-
 SA #(
-    .D_W         (D_W         ),
-    .SA_R        (SA_R        ),
-    .SA_C        (SA_C        )
+    .D_W          (D_W       ),
+    .SA_R         (SA_R      ),
+    .SA_C         (SA_C      )
 ) u_SA (
-    .I_CLK       (I_CLK       ),
-    .I_RST_N     (I_RST_N     ),
-    .I_START_FLAG(I_START_FLAG),
-    .I_END_FLAG  (O_OUT_VLD   ),
-    .I_X         (input_x     ),//input x(from left)
-    .I_W         (input_w     ),//input weight(from up)
-    .I_D         (I_DATA_LOAD ),//input load data
-    .O_SHIFT     (O_PE_SHIFT  ),//PE shift,O_SHIFT <= 1
-    .O_OUT       (O_OUT       ) //output data(keep),
+    .I_CLK        (I_CLK     ),
+    .I_RST_N      (I_RST_N   ),
+    .I_LOAD_SIGNAL(I_LOAD_FLAG),
+    .I_X          (input_x   ),//input x(from left)
+    .I_W          (I_W_MATRIX),//input weight(from up)
+    .I_W_LAST     (last_weight_ff  ),
+    .O_D          (output_d  ) //output data(keep),
 );
 endmodule

@@ -11,7 +11,6 @@ module SA_mat_manager#(
 )(
     input  logic           I_CLK                      ,
     input  logic           I_RST_N                    ,
-    input  logic           I_PE_SHIFT                 ,
     input  logic           I_START                    ,
     input  logic [D_W-1:0] I_X_MATRIX [0:X_R-1][0:W_C-1],
     input  logic [D_W-1:0] I_W_MATRIX [0:X_R-1][0:W_C-1],
@@ -39,12 +38,8 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
     if(!I_RST_N | I_START)begin
         sel   <= 'b0;
     end else begin
-        if(I_PE_SHIFT)begin
-            if(sel<16'd16)begin
-                sel   <= sel + 1;
-            end else begin
-                sel   <= sel;
-            end
+        if(sel<16'd16)begin
+            sel   <= sel + 1;
         end else begin
             sel   <= sel;
         end

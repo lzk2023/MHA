@@ -18,6 +18,7 @@ bit [D_W-1:0] W_MATRIX [0:SA_R-1][0:SA_C-1];
 bit [D_W-1:0] COMPARE_MAT0 [0:SA_R-1][0:SA_C-1];
 bit [D_W-1:0] COMPARE_MAT1 [0:SA_R-1][0:SA_C-1];
 bit [D_W-1:0] COMPARE_MAT2 [0:SA_R-1][0:SA_C-1];
+bit [D_W-1:0] COMPARE_MAT3 [0:SA_R-1][0:SA_C-1];
 
 logic O_INPUT_FIFO_EMPTY[0:SA_R-1];
 logic O_OUTPUT_FIFO_FULL[0:SA_C-1];
@@ -46,6 +47,7 @@ SA_wrapper#(
     .I_LOAD_FLAG        (I_LOAD_FLAG       ),
     .I_X_MATRIX         (X_MATRIX_ROTATE   ),
     .I_W_MATRIX         (W_MATRIX          ),
+    .I_ACCUMULATE_SIGNAL(1'b1),
     .O_INPUT_FIFO_EMPTY (O_INPUT_FIFO_EMPTY),
     .O_OUTPUT_FIFO_FULL (O_OUTPUT_FIFO_FULL),
     .O_LOAD_WEIGHT_VLD  (O_LOAD_WEIGHT_VLD ),
@@ -94,6 +96,8 @@ initial begin
     @(posedge I_CLK)
     I_LOAD_FLAG <= 0;
     mul_matrix_16_16(X_MATRIX,W_MATRIX,COMPARE_MAT2);
+    add_matrix_16_16(COMPARE_MAT0,COMPARE_MAT1,COMPARE_MAT3);
+    add_matrix_16_16(COMPARE_MAT3,COMPARE_MAT2,COMPARE_MAT3);
     #1000
     $finish;
 end

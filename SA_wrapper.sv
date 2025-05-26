@@ -38,6 +38,7 @@ module SA_wrapper#(
     input  logic           I_LOAD_FLAG                            ,
     input  logic [D_W-1:0] I_X_MATRIX         [0:SA_R-1][0:SA_C-1],
     input  logic [D_W-1:0] I_W_MATRIX         [0:SA_R-1][0:SA_C-1],
+    input  logic           I_ACCUMULATE_SIGNAL                    ,
     output logic           O_INPUT_FIFO_EMPTY [0:SA_R-1]          ,
     output logic           O_OUTPUT_FIFO_FULL [0:SA_C-1]          ,
     output logic           O_LOAD_WEIGHT_VLD                      ,
@@ -45,11 +46,13 @@ module SA_wrapper#(
     output logic [D_W-1:0] O_OUT              [0:SA_R-1][0:SA_C-1] 
 );
 
-logic [D_W-1:0] input_x       [0:SA_R-1];
-logic           input_fifo_en [0:SA_R-1];
-logic [D_W-1:0] output_d      [0:SA_C-1];
-logic           output_fifo_en[0:SA_C-1];
-logic           output_fifo_load_ff     ;
+logic [D_W-1:0] input_x               [0:SA_R-1];
+logic           input_fifo_en         [0:SA_R-1];
+logic [D_W-1:0] output_d              [0:SA_C-1];
+logic           output_fifo_en        [0:SA_C-1];
+logic           output_fifo_load_ff             ;
+logic [D_W-1:0] output_fifo_pop_data  [0:SA_C-1];
+logic [D_W-1:0] output_fifo_push_data [0:SA_C-1];
 logic [D_W-1:0] last_weight_ff [0:SA_R-1][0:SA_C-1];
 
 logic [D_W-1:0] output_fifo_data [0:SA_R-1][0:SA_C-1];
@@ -161,6 +164,7 @@ endgenerate
 
 generate
     for(genvar j=0;j<SA_C;j=j+1)begin:SA_OUTPUT_FIFO_GEN
+        assign output_fifo_push_data[j] = I_ACCUMULATE_SIGNAL ? (output_fifo_pop_data[j] + output_d[j]) : output_d[j];
         if(j==0)begin
             SA_output_fifo#(
                 .DATA_WIDTH(8 ),
@@ -169,9 +173,9 @@ generate
                 .I_CLK      (I_CLK      ),
                 .I_RST_N    (I_RST_N    ),
                 .I_PUSH_EN  (output_fifo_load_ff  ),
-                .I_PUSH_DATA(output_d[j]),
+                .I_PUSH_DATA(output_fifo_push_data[j]),
                 .O_ALL_DATA (output_fifo_data[j] ),
-                .O_POP_DATA ( ),
+                .O_POP_DATA (output_fifo_pop_data[j]),
                 .O_PUSH_EN  (output_fifo_en[j]),
                 .O_FULL     (O_OUTPUT_FIFO_FULL[j]     )
             );
@@ -183,9 +187,9 @@ generate
                 .I_CLK      (I_CLK      ),
                 .I_RST_N    (I_RST_N    ),
                 .I_PUSH_EN  (output_fifo_en[j-1]),
-                .I_PUSH_DATA(output_d[j]),
+                .I_PUSH_DATA(output_fifo_push_data[j]),
                 .O_ALL_DATA (output_fifo_data[j] ),
-                .O_POP_DATA ( ),
+                .O_POP_DATA (output_fifo_pop_data[j]),
                 .O_PUSH_EN  (output_fifo_en[j]),
                 .O_FULL     (O_OUTPUT_FIFO_FULL[j]     )
             );
@@ -197,9 +201,9 @@ generate
                 .I_CLK      (I_CLK      ),
                 .I_RST_N    (I_RST_N    ),
                 .I_PUSH_EN  (output_fifo_en[j-1]),
-                .I_PUSH_DATA(output_d[j]),
+                .I_PUSH_DATA(output_fifo_push_data[j]),
                 .O_ALL_DATA (output_fifo_data[j] ),
-                .O_POP_DATA ( ),
+                .O_POP_DATA (output_fifo_pop_data[j]),
                 .O_PUSH_EN  (output_fifo_en[j]),
                 .O_FULL     (O_OUTPUT_FIFO_FULL[j]     )
             );

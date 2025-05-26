@@ -13,7 +13,7 @@ function  bit [7:0] mul_signed8(
     end
 endfunction
 
-function mul_matrix_16_16(
+task mul_matrix_16_16(
     input  bit [7:0] a [0:15][0:15],
     input  bit [7:0] b [0:15][0:15],
     output bit [7:0] c [0:15][0:15]
@@ -26,5 +26,17 @@ function mul_matrix_16_16(
             end
         end
     end
-endfunction
+endtask
+
+task add_matrix_16_16(
+    input  bit [7:0] a [0:15][0:15],
+    input  bit [7:0] b [0:15][0:15],
+    output bit [7:0] c [0:15][0:15]
+);
+    for(int i=0;i<16;i=i+1)begin
+        for(int j=0;j<16;j=j+1)begin
+            c[i][j] = a[i][j] + b[i][j];
+        end
+    end
+endtask
 endpackage

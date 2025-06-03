@@ -7,24 +7,40 @@ bit                I_CLK        ;
 bit                I_RST_N  ;
 bit                I_ATTN_START ;
 
-logic                O_SA_START ;
+logic                O_SA_LOAD     ;
 logic [7:0] O_MAT_1 [0:15][0:15]   ;
 logic [7:0] O_MAT_2 [0:15][0:15]   ;
-logic [7:0] O_DATA_LOAD [0:15][0:15];
-logic                O_DATA_VLD ;
-logic [7:0] O_ATT_DATA [0:15][0:15];
+logic                O_DATA_VLD    ;
+logic [7:0] O_ATTN_DATA [0:15][0:127];
 logic                I_SA_VLD     ;
 logic [7:0] I_SA_RESULT [0:15][0:15] ;
-logic                I_PE_SHIFT   ;
+logic       I_LOAD_W_SIGNAL;
+logic       O_ACC_SIGNAL;
 
-logic       I_BRAM_RD_VLD ;
-logic [7:0] I_BRAM_RD_MAT [0:15][0:15];
-logic       I_BRAM_WR_DONE;
-logic       O_RD_ENA      ;
-logic       O_WR_ENA      ;
-logic [1:0]O_BRAM_SEL_MAT ;
-logic [5:0]O_BRAM_SEL_LINE;
-logic [2:0]O_BRAM_SEL_COL ;
+logic       BRAM_RD_Q_VLD;
+logic       BRAM_RD_K_VLD;
+logic       BRAM_RD_V_VLD;
+logic       BRAM_RD_O_VLD;
+logic [7:0] BRAM_RD_Q_MAT [0:15][0:15];
+logic [7:0] BRAM_RD_K_MAT [0:15][0:15];
+logic [7:0] BRAM_RD_V_MAT [0:15][0:15];
+logic [7:0] BRAM_RD_O_MAT [0:15][0:15];
+
+logic       BRAM_Q_ENA  ;
+logic       BRAM_K_ENA  ;
+logic       BRAM_V_ENA  ;
+logic       BRAM_O_ENA  ;
+logic       BRAM_O_WEA  ;
+logic [7:0] BRAM_WR_MAT [0:15][0:15];
+logic [5:0] BRAM_SEL_Q_LINE;
+logic [2:0] BRAM_SEL_Q_COL ;
+logic [5:0] BRAM_SEL_K_LINE;
+logic [2:0] BRAM_SEL_K_COL ;
+logic [5:0] BRAM_SEL_V_LINE;
+logic [2:0] BRAM_SEL_V_COL ;
+logic [5:0] BRAM_SEL_O_LINE;
+logic [2:0] BRAM_SEL_O_COL ;
+
 
 attention#(
     .D_W   (8 ),
@@ -36,41 +52,65 @@ attention#(
     .I_CLK          (I_CLK        ),
     .I_RST_N        (I_RST_N      ),
     .I_ATTN_START   (I_ATTN_START ),
-    .I_PE_SHIFT     (I_PE_SHIFT   ),//connect to SA_wrapper O_PE_SHIFT
-    //.I_MAT_Q        (Q_MATRIX     ),
-    //.I_MAT_K        (K_MATRIX     ),
-    //.I_MAT_V        (V_MATRIX     ),
     .I_SA_VLD       (I_SA_VLD     ),//valid from SA
     .I_SA_RESULT    (I_SA_RESULT  ),//16*16*D_W,from SA
-    .O_SA_START     (O_SA_START   ),//to SA_wrapper
+    .I_LOAD_W_SIGNAL(I_LOAD_W_SIGNAL),
+    .O_SA_LOAD      (O_SA_LOAD    ),//to SA_wrapper
     .O_MAT_1        (O_MAT_1      ),//to SA_wrapper
     .O_MAT_2        (O_MAT_2      ),//to SA_wrapper
-    .O_DATA_LOAD    (O_DATA_LOAD  ),//to SA_wrapper
+    .O_ACC_SIGNAL   (O_ACC_SIGNAL),
     .O_DATA_VLD     (O_DATA_VLD   ),
-    .O_ATT_DATA     (O_ATT_DATA   ),
+    .O_ATTN_DATA    (O_ATTN_DATA  ),
 //****************bram ports**************//
-    .I_BRAM_RD_VLD  (I_BRAM_RD_VLD ),
-    .I_BRAM_RD_MAT  (I_BRAM_RD_MAT ),
-    .I_BRAM_WR_DONE (I_BRAM_WR_DONE),
-    .O_RD_ENA       (O_RD_ENA      ),//out to bram_manager
-    .O_WR_ENA       (O_WR_ENA      ),
-    .O_BRAM_SEL_MAT (O_BRAM_SEL_MAT ),
-    .O_BRAM_SEL_LINE(O_BRAM_SEL_LINE),
-    .O_BRAM_SEL_COL (O_BRAM_SEL_COL )
+    .I_BRAM_RD_Q_VLD   (BRAM_RD_Q_VLD),
+    .I_BRAM_RD_K_VLD   (BRAM_RD_K_VLD),
+    .I_BRAM_RD_V_VLD   (BRAM_RD_V_VLD),
+    .I_BRAM_RD_O_VLD   (BRAM_RD_O_VLD),
+    .I_BRAM_RD_Q_MAT   (BRAM_RD_Q_MAT),
+    .I_BRAM_RD_K_MAT   (BRAM_RD_K_MAT),
+    .I_BRAM_RD_V_MAT   (BRAM_RD_V_MAT),
+    .I_BRAM_RD_O_MAT   (BRAM_RD_O_MAT),
+    .O_BRAM_WR_MAT     (BRAM_WR_MAT),
+    .O_BRAM_Q_ENA      (BRAM_Q_ENA),
+    .O_BRAM_K_ENA      (BRAM_K_ENA),
+    .O_BRAM_V_ENA      (BRAM_V_ENA),
+    .O_BRAM_O_ENA      (BRAM_O_ENA),
+    .O_BRAM_O_WEA      (BRAM_O_WEA),
+    .O_BRAM_SEL_Q_LINE (BRAM_SEL_Q_LINE),
+    .O_BRAM_SEL_Q_COL  (BRAM_SEL_Q_COL ),
+    .O_BRAM_SEL_K_LINE (BRAM_SEL_K_LINE),
+    .O_BRAM_SEL_K_COL  (BRAM_SEL_K_COL ),
+    .O_BRAM_SEL_V_LINE (BRAM_SEL_V_LINE),
+    .O_BRAM_SEL_V_COL  (BRAM_SEL_V_COL ),
+    .O_BRAM_SEL_O_LINE (BRAM_SEL_O_LINE),
+    .O_BRAM_SEL_O_COL  (BRAM_SEL_O_COL ) 
 );
 
-bram_manager u_bram_manager(
-    .I_CLK         (I_CLK         ), 
-    .I_RST_N       (I_RST_N       ), 
-    .I_RD_ENA      (O_RD_ENA      ),
-    .I_WR_ENA      (O_WR_ENA      ),
-    .I_SEL_MAT     (O_BRAM_SEL_MAT ),
-    .I_SEL_LINE    (O_BRAM_SEL_LINE),
-    .I_SEL_COL     (O_BRAM_SEL_COL ),
-    .I_MAT         (O_ATT_DATA    ),
-    .O_VLD         (I_BRAM_RD_VLD ),
-    .O_MAT         (I_BRAM_RD_MAT ),
-    .O_WR_DONE     (I_BRAM_WR_DONE)
+bram_manager u_bram(
+    .I_CLK        (I_CLK     ), 
+    .I_RST_N      (I_RST_N   ), 
+    .I_ENA_Q      (BRAM_Q_ENA),
+    .I_ENA_K      (BRAM_K_ENA),
+    .I_ENA_V      (BRAM_V_ENA),
+    .I_ENA_O      (BRAM_O_ENA),
+    .I_WEA_O      (BRAM_O_WEA),
+    .I_SEL_Q_LINE (BRAM_SEL_Q_LINE),
+    .I_SEL_Q_COL  (BRAM_SEL_Q_COL ),
+    .I_SEL_K_LINE (BRAM_SEL_K_LINE),
+    .I_SEL_K_COL  (BRAM_SEL_K_COL ),
+    .I_SEL_V_LINE (BRAM_SEL_V_LINE),
+    .I_SEL_V_COL  (BRAM_SEL_V_COL ),
+    .I_SEL_O_LINE (BRAM_SEL_O_LINE),
+    .I_SEL_O_COL  (BRAM_SEL_O_COL ),
+    .I_MAT        (BRAM_WR_MAT),
+    .O_VLD_Q      (BRAM_RD_Q_VLD   ),
+    .O_VLD_K      (BRAM_RD_K_VLD   ),
+    .O_VLD_V      (BRAM_RD_V_VLD   ),
+    .O_VLD_O      (BRAM_RD_O_VLD   ),
+    .O_MAT_Q      (BRAM_RD_Q_MAT   ),
+    .O_MAT_K      (BRAM_RD_K_MAT   ),
+    .O_MAT_V      (BRAM_RD_V_MAT   ),
+    .O_MAT_O      (BRAM_RD_O_MAT   ) 
 );
 
 SA_wrapper#(
@@ -80,12 +120,14 @@ SA_wrapper#(
 ) u_dut_SA_top(
     .I_CLK          (I_CLK        ),
     .I_RST_N        (I_RST_N      ),
-    .I_START_FLAG   (O_SA_START   ),
+    .I_LOAD_FLAG    (O_SA_LOAD    ),
     .I_X_MATRIX     (O_MAT_1      ),//input x(from left)     
-    .I_W_MATRIX     (O_MAT_2      ),//input weight(from ddr)             
-    .I_DATA_LOAD    (O_DATA_LOAD  ),
-    .O_OUT_VLD      (I_SA_VLD     ),// 
-    .O_PE_SHIFT     (I_PE_SHIFT   ),                                  
+    .I_W_MATRIX     (O_MAT_2      ),//input weight(from ddr)      
+    .I_ACCUMULATE_SIGNAL(O_ACC_SIGNAL),
+    .O_INPUT_FIFO_EMPTY(),
+    .O_OUTPUT_FIFO_FULL(),
+    .O_LOAD_WEIGHT_VLD (I_LOAD_W_SIGNAL),
+    .O_OUT_VLD      (I_SA_VLD     ),//                              
     .O_OUT          (I_SA_RESULT  ) //OUT.shape = (X_R,64)               
 );    
 always #5 I_CLK = ~I_CLK;

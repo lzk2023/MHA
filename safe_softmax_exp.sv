@@ -24,11 +24,12 @@ assign uivi_ab = (uivi == 0) ? 0 : ~uivi[15:0] + 1'b1;
 assign ui = uivi_ab[15:13];
 assign vi = uivi_ab[12:0];
 always_comb begin
-    if(I_X == 0)begin
-        O_EXP = 16'b0_00_11111_1111_1111;//exp0 == 1
-    end else begin
-        O_EXP = n_2_vi >> ui;
-    end
+    //if(I_X == 0)begin
+    //    O_EXP = 16'b0_00_11111_1111_1111;//exp0 == 1
+    //end else begin
+    //    O_EXP = n_2_vi >> ui;
+    //end
+    O_EXP = n_2_vi >> ui;
 end
 safe_softmax_lut_neg #(
     .D_W(D_W)

@@ -10,7 +10,7 @@ module safe_softmax#(                        //safe_softmax
     input  logic [D_W-1:0] I_X_MAX          ,
     input  logic [15:0]    I_EXP_SUM        ,//data:0_000_0000_0000_0000
     output logic [D_W-1:0] O_X_MAX          ,
-    output logic [15:0]    O_EXP_SUM        ,//data:0_000_0000_0000_0000
+    output logic [15:0]    O_EXP_SUM        ,//data:0_000_0000_0000_0000 1bit signal,10bits int,5bits frac
     output logic           O_VLD            ,
     output logic [D_W-1:0] O_DATA [0:NUM-1]
 );
@@ -26,7 +26,7 @@ logic [7:0]  sel_16_max;
 logic [7:0]  data_x_max;
 logic [15:0] data_e_x [0:NUM-1];
 logic [15:0] data_e_x_ff [0:NUM-1];
-logic [20:0] data_e_x_ff_sum;//extend 5 bits,2^7 = 128
+logic [23:0] data_e_x_ff_sum;//extend 8 bits,2^10 = 1024
 logic [15:0] quotient [0:NUM-1];
 //reg  [D_W-1+2:0] data_sum;//data_max extend
 logic  [15:0] data_sum;
@@ -34,9 +34,13 @@ logic  [1:0]  add_div_cnt;
 logic  [NUM-1:0] div_vld ;
 logic         div_vld_all;
 logic         div_start;
+logic [15:0] in_exp_16bit [0:NUM-1]; 
+
+logic [15:0] exp_m_old_sub_m_new;
+logic [47:0] mul_out_47;
 
 assign O_X_MAX = data_x_max;
-assign O_EXP_SUM = data_e_x_ff_sum[20:5];
+assign O_EXP_SUM = data_e_x_ff_sum[23:8];
 
 sel_max#(
     .D_W(8)
@@ -52,7 +56,6 @@ integer k;
 
 generate
     if(D_W == 8)begin
-        logic [15:0] in_exp_16bit [0:NUM-1]; 
         for(genvar i=0;i<NUM;i=i+1)begin
             assign in_exp_16bit[i] = {I_DATA[i],8'b0} - {data_x_max,8'b0};
             safe_softmax_exp #(
@@ -103,10 +106,24 @@ endgenerate
 
 assign div_vld_all = & div_vld;
 
+safe_softmax_exp #(
+    .D_W(16)
+)u_exp_x_cal_li(         //data format:16bit
+    .I_X  ({I_X_MAX,8'd0} - {O_X_MAX,8'd0}) ,
+    .O_EXP(exp_m_old_sub_m_new)
+);
+
+mul_fast #(
+    .IN_DW(24)
+)u_mul_in_exp(
+    .I_IN1     ({I_EXP_SUM,8'b0}),
+    .I_IN2     ({exp_m_old_sub_m_new[15],8'b0,exp_m_old_sub_m_new[14:0]}),//{exp[15],13'b0,exp[14:13],exp[12:5]}
+    .O_MUL_OUT (mul_out_47)
+);
 always_comb begin
-    data_e_x_ff_sum = {I_EXP_SUM,5'b0};
+    data_e_x_ff_sum = {mul_out_47[47],mul_out_47[35:13]};//li_new = li_old*e^(m_i-1 - m_i) + e^(x-mi)
     for(j=0;j<NUM;j=j+1)begin
-        data_e_x_ff_sum = data_e_x_ff_sum + data_e_x_ff[j];//opt timing
+        data_e_x_ff_sum = data_e_x_ff_sum + {data_e_x_ff[j][15],8'd0,data_e_x_ff[j][14:0]};//opt timing
     end
 end
 
@@ -143,7 +160,7 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
                         state <= S_DIV;
                         div_start <= 1;
                         add_div_cnt <= 0;
-                        data_sum <= data_e_x_ff_sum[20:5];
+                        data_sum <= data_e_x_ff_sum[23:8];
                     end
                 end else begin
                     state <= S_IDLE;

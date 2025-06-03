@@ -1,42 +1,80 @@
 `timescale 1ns/1ps
 
 module bram_manager(
-    input  logic       I_CLK             , 
-    input  logic       I_RST_N           , 
-    input  logic       I_RD_ENA          ,
-    input  logic       I_WR_ENA          ,
-    input  logic [1:0] I_SEL_MAT         ,//sel,matrix Q(2'b00),K(2'b01),V(2'b10),O(2'b11)
-    input  logic [5:0] I_SEL_LINE        ,//sel,choose line
-    input  logic [2:0] I_SEL_COL         ,//sel,choose column
-    input  logic [7:0] I_MAT [0:15][0:15],
-    output logic       O_VLD             ,
-    output logic [7:0] O_MAT [0:15][0:15],
-    output logic       O_WR_DONE          
+    input  logic       I_CLK               , 
+    input  logic       I_RST_N             ,
+    input  logic       I_ENA_Q             ,
+    input  logic       I_ENA_K             ,
+    input  logic       I_ENA_V             ,
+    input  logic       I_ENA_O             ,
+    input  logic       I_WEA_O             ,
+    input  logic [5:0] I_SEL_Q_LINE        ,//sel,choose line 0~63
+    input  logic [2:0] I_SEL_Q_COL         ,//sel,choose column 0~7
+    input  logic [5:0] I_SEL_K_LINE        ,//sel,choose line 0~63
+    input  logic [2:0] I_SEL_K_COL         ,//sel,choose column 0~7
+    input  logic [5:0] I_SEL_V_LINE        ,//sel,choose line 0~63
+    input  logic [2:0] I_SEL_V_COL         ,//sel,choose column 0~7
+    input  logic [5:0] I_SEL_O_LINE        ,//sel,choose line 0~63
+    input  logic [2:0] I_SEL_O_COL         ,//sel,choose column 0~7
+    input  logic [7:0] I_MAT   [0:15][0:15],
+    output logic       O_VLD_Q             ,
+    output logic       O_VLD_K             ,
+    output logic       O_VLD_V             ,
+    output logic       O_VLD_O             ,
+    output logic [7:0] O_MAT_Q [0:15][0:15],
+    output logic [7:0] O_MAT_K [0:15][0:15],
+    output logic [7:0] O_MAT_V [0:15][0:15],
+    output logic [7:0] O_MAT_O [0:15][0:15] 
 );
 
-enum logic [1:0] {
-    S_IDLE  = 2'b00,
-    S_DELAY = 2'b01,
-    S_OUT   = 2'b11,
-    S_WRITE = 2'b10
-} state;
-
-logic          delay_ff;
-logic          ena;
-logic          wea;
-logic [10:0]   addra;
+logic          cnt_q;
+logic          cnt_k;
+logic          cnt_v;
+logic          cnt_o;
+logic [8:0]    addra_q;
+logic [8:0]    addra_k;
+logic [8:0]    addra_v;
+logic [8:0]    addra_o;
 logic [2047:0] dina;
-logic [2047:0] douta;
-logic [7:0]    dout_mat [0:15][0:15];
-
-assign addra = {I_SEL_MAT,I_SEL_LINE,I_SEL_COL}; //{[1:0],[5:0],[2:0]}
-bram_ip u_single_port_ram (
-    .clka (I_CLK), // input wire clka
-    .ena  (ena  ), // input wire ena
-    .wea  (wea  ), // input wire [0 : 0] wea
-    .addra(addra), // input wire [10 : 0] addra
-    .dina (dina ), // input wire [2047 : 0] dina
-    .douta(douta)  // output wire [2047 : 0] douta,delay 2 clks
+logic [2047:0] dout_q;
+logic [2047:0] dout_k;
+logic [2047:0] dout_v;
+logic [2047:0] dout_o;
+assign addra_q = {I_SEL_Q_LINE,I_SEL_Q_COL}; //{[5:0],[2:0]}
+assign addra_k = {I_SEL_K_LINE,I_SEL_K_COL}; //{[5:0],[2:0]}
+assign addra_v = {I_SEL_V_LINE,I_SEL_V_COL}; //{[5:0],[2:0]}
+assign addra_o = {I_SEL_O_LINE,I_SEL_O_COL}; //{[5:0],[2:0]}
+bram_ip_q u_ram_q (
+  .clka (I_CLK  ), // input wire clka
+  .ena  (I_ENA_Q), // input wire ena         (KEEP)
+  .wea  (1'b0   ), // input wire [0 : 0] wea (KEEP)
+  .addra(addra_q), // input wire [8 : 0] addra
+  .dina ('b0    ), // input wire [2047 : 0] dina
+  .douta(dout_q )  // output wire [2047 : 0] douta
+);
+bram_ip_k u_ram_k (
+  .clka (I_CLK  ), // input wire clka
+  .ena  (I_ENA_K), // input wire ena
+  .wea  (1'b0   ), // input wire [0 : 0] wea
+  .addra(addra_k), // input wire [8 : 0] addra
+  .dina ('b0    ), // input wire [2047 : 0] dina
+  .douta(dout_k )  // output wire [2047 : 0] douta
+);
+bram_ip_v u_ram_v (
+  .clka (I_CLK  ), // input wire clka
+  .ena  (I_ENA_V), // input wire ena
+  .wea  (1'b0   ), // input wire [0 : 0] wea
+  .addra(addra_v), // input wire [8 : 0] addra
+  .dina ('b0    ), // input wire [2047 : 0] dina
+  .douta(dout_v )  // output wire [2047 : 0] douta
+);
+bram_ip_o u_ram_o (
+  .clka (I_CLK  ), // input wire clka
+  .ena  (I_ENA_O), // input wire ena
+  .wea  (I_WEA_O), // input wire [0 : 0] wea
+  .addra(addra_o), // input wire [8 : 0] addra
+  .dina (dina   ), // input wire [2047 : 0] dina
+  .douta(dout_o )  // output wire [2047 : 0] douta
 );
 ///////////////////////////////////
 //bram: ena wea   function
@@ -56,62 +94,76 @@ endgenerate
 generate
     for(genvar x=0;x<16;x=x+1)begin
         for(genvar y=0;y<16;y=y+1)begin
-            assign dout_mat[x][y] = douta[((15-x)*16+(15-y))*8 +: 8];
+            assign O_MAT_Q[x][y] = dout_q[((15-x)*16+(15-y))*8 +: 8];
+            assign O_MAT_K[x][y] = dout_k[((15-x)*16+(15-y))*8 +: 8];
+            assign O_MAT_V[x][y] = dout_v[((15-x)*16+(15-y))*8 +: 8];
+            assign O_MAT_O[x][y] = dout_o[((15-x)*16+(15-y))*8 +: 8];
         end
     end
 endgenerate
-/////////////////FSM///////////////////
+
 always_ff@(posedge I_CLK or negedge I_RST_N)begin
     if(!I_RST_N)begin
-        state <= S_IDLE;
-        delay_ff <= 0;
-        ena <= 0;
-        wea <= 0;
-        O_VLD <= 0;
-        O_MAT <= '{default:0};
-        O_WR_DONE <= 0;
+        cnt_q   <= 1'b0;
+        O_VLD_Q <= 1'b0;
+    end else if(I_ENA_Q)begin
+        cnt_q <= ~cnt_q;
+        if(cnt_q == 1'b1)begin
+            O_VLD_Q <= 1'b1;
+        end else begin
+            O_VLD_Q <= 1'b0;
+        end
     end else begin
-        case(state)
-            S_IDLE   :begin
-                if(I_WR_ENA & !O_WR_DONE)begin
-                    state <= S_WRITE;
-                    ena <= 1;
-                    wea <= 1;
-                    O_WR_DONE <= 0;
-                end else if(I_RD_ENA & !O_VLD)begin
-                    state <= S_DELAY;
-                    delay_ff <= 0;
-                    ena <= 1;
-                    wea <= 0;
-                    O_VLD <= 0;
-                end else begin
-                    state <= state;
-                    O_VLD <= 0;
-                    O_WR_DONE <= 0;
-                end
-            end
-            S_DELAY  :begin
-                if(delay_ff == 0)begin
-                    delay_ff <= 1;
-                    state <= state;
-                end else begin
-                    state <= S_OUT;
-                end
-            end
-            S_OUT    :begin
-                O_VLD <= 1;
-                ena   <= 0;
-                wea   <= 0;
-                O_MAT <= dout_mat;
-                state <= S_IDLE;
-            end
-            S_WRITE  :begin
-                state <= S_IDLE;
-                ena   <= 0;
-                wea   <= 0;
-                O_WR_DONE <= 1;
-            end
-        endcase
+        cnt_q   <= 1'b0;
+        O_VLD_Q <= 1'b0;
+    end
+end
+always_ff@(posedge I_CLK or negedge I_RST_N)begin
+    if(!I_RST_N)begin
+        cnt_k   <= 1'b0;
+        O_VLD_K <= 1'b0;
+    end else if(I_ENA_K)begin
+        cnt_k <= ~cnt_k;
+        if(cnt_k == 1'b1)begin
+            O_VLD_K <= 1'b1;
+        end else begin
+            O_VLD_K <= 1'b0;
+        end
+    end else begin
+        cnt_k   <= 1'b0;
+        O_VLD_K <= 1'b0;
+    end
+end
+always_ff@(posedge I_CLK or negedge I_RST_N)begin
+    if(!I_RST_N)begin
+        cnt_v   <= 1'b0;
+        O_VLD_V <= 1'b0;
+    end else if(I_ENA_V)begin
+        cnt_v <= ~cnt_v;
+        if(cnt_v == 1'b1)begin
+            O_VLD_V <= 1'b1;
+        end else begin
+            O_VLD_V <= 1'b0;
+        end
+    end else begin
+        cnt_v   <= 1'b0;
+        O_VLD_V <= 1'b0;
+    end
+end
+always_ff@(posedge I_CLK or negedge I_RST_N)begin
+    if(!I_RST_N)begin
+        cnt_o   <= 1'b0;
+        O_VLD_O <= 1'b0;
+    end else if(I_ENA_O & ~I_WEA_O)begin
+        cnt_o <= ~cnt_o;
+        if(cnt_o == 1'b1)begin
+            O_VLD_O <= 1'b1;
+        end else begin
+            O_VLD_O <= 1'b0;
+        end
+    end else begin
+        cnt_o   <= 1'b0;
+        O_VLD_O <= 1'b0;
     end
 end
 endmodule

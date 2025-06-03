@@ -29,7 +29,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 module SA_wrapper#(
-    parameter D_W   = 8 , //Data_Width
+    parameter D_W   = 16, //Data_Width
     parameter SA_R  = 16, //SA_ROW,     SA.shape = (SA_R,SA_C)
     parameter SA_C  = 16  //SA_COLUMN
 ) (
@@ -46,6 +46,8 @@ module SA_wrapper#(
     output logic [D_W-1:0] O_OUT              [0:SA_R-1][0:SA_C-1] 
 );
 
+logic [D_W-1:0] x_matrix_transpose [0:SA_R-1][0:SA_C-1];
+logic [D_W-1:0] x_matrix_rotate [0:SA_R-1][0:SA_C-1];
 logic [D_W-1:0] input_x               [0:SA_R-1];
 logic           input_fifo_en         [0:SA_R-1];
 logic [D_W-1:0] output_d              [0:SA_C-1];
@@ -118,42 +120,51 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
 end
 
 generate
-    for(genvar i=0;i<SA_R;i=i+1)begin:SA_INPUT_FIFO_GEN
+    for(genvar i=0;i<SA_R;i=i+1)begin:GEN_SA_INPUTX_ROTATE
+        for(genvar j=0;j<SA_C;j=j+1)begin
+            assign x_matrix_transpose[i][j] = I_X_MATRIX[j][i];
+            assign x_matrix_rotate [i][j] = x_matrix_transpose[i][SA_C-1-j];
+        end
+    end
+endgenerate
+
+generate
+    for(genvar i=0;i<SA_R;i=i+1)begin:GEN_SA_INPUT_FIFO
         if(i==0)begin
             SA_input_fifo#(
-            .DATA_WIDTH(8 ),
+            .DATA_WIDTH(D_W),
             .FIFO_DEPTH(16)
         )u_SA_input_fifo(
             .I_CLK      (I_CLK      ),
             .I_RST_N    (I_RST_N    ),
             .I_LOAD_EN  (I_LOAD_FLAG),
-            .I_LOAD_DATA(I_X_MATRIX[i]),
+            .I_LOAD_DATA(x_matrix_rotate[i]),
             .O_DATA     (input_x[i] ),
             .O_LOAD_EN  (input_fifo_en[i]  ),
             .O_EMPTY    (O_INPUT_FIFO_EMPTY[i])
         );
         end else if(i==SA_R-1)begin
             SA_input_fifo#(
-            .DATA_WIDTH(8 ),
+            .DATA_WIDTH(D_W),
             .FIFO_DEPTH(16)
         )u_SA_input_fifo(
             .I_CLK      (I_CLK      ),
             .I_RST_N    (I_RST_N    ),
             .I_LOAD_EN  (input_fifo_en[i-1]),
-            .I_LOAD_DATA(I_X_MATRIX[i]),
+            .I_LOAD_DATA(x_matrix_rotate[i]),
             .O_DATA     (input_x[i] ),
             .O_LOAD_EN  (input_fifo_en[i]  ),
             .O_EMPTY    (O_INPUT_FIFO_EMPTY[i])
         );
         end else begin
             SA_input_fifo#(
-            .DATA_WIDTH(8 ),
+            .DATA_WIDTH(D_W),
             .FIFO_DEPTH(16)
         )u_SA_input_fifo(
             .I_CLK      (I_CLK      ),
             .I_RST_N    (I_RST_N    ),
             .I_LOAD_EN  (input_fifo_en[i-1]),
-            .I_LOAD_DATA(I_X_MATRIX[i]),
+            .I_LOAD_DATA(x_matrix_rotate[i]),
             .O_DATA     (input_x[i] ),
             .O_LOAD_EN  (input_fifo_en[i]  ),
             .O_EMPTY    (O_INPUT_FIFO_EMPTY[i])
@@ -163,11 +174,11 @@ generate
 endgenerate
 
 generate
-    for(genvar j=0;j<SA_C;j=j+1)begin:SA_OUTPUT_FIFO_GEN
+    for(genvar j=0;j<SA_C;j=j+1)begin:GEN_SA_OUTPUT_FIFO
         assign output_fifo_push_data[j] = I_ACCUMULATE_SIGNAL ? (output_fifo_pop_data[j] + output_d[j]) : output_d[j];
         if(j==0)begin
             SA_output_fifo#(
-                .DATA_WIDTH(8 ),
+                .DATA_WIDTH(D_W),
                 .FIFO_DEPTH(16)
             )u_SA_output_fifo(
                 .I_CLK      (I_CLK      ),
@@ -181,7 +192,7 @@ generate
             );
         end else if(j==SA_C-1)begin
             SA_output_fifo#(
-                .DATA_WIDTH(8 ),
+                .DATA_WIDTH(D_W),
                 .FIFO_DEPTH(16)
             )u_SA_output_fifo(
                 .I_CLK      (I_CLK      ),
@@ -195,7 +206,7 @@ generate
             );
         end else begin
             SA_output_fifo#(
-                .DATA_WIDTH(8 ),
+                .DATA_WIDTH(D_W),
                 .FIFO_DEPTH(16)
             )u_SA_output_fifo(
                 .I_CLK      (I_CLK      ),

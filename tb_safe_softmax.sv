@@ -40,8 +40,8 @@ module tb_safe_softmax();
     .I_RST_N  (rst_n),
     .I_START  (start),//keep when calculate
     .I_DATA   (data ),
-    .I_X_MAX  (8'd0),
-    .I_EXP_SUM(16'd0),//0_0000000_0000_0000,1 signal bit,7int bit,8frac bit
+    .I_X_MAX  (8'h78),
+    .I_EXP_SUM(16'h008D),//0_0000000_0000_0000,1 signal bit,7int bit,8frac bit
     .O_X_MAX  (),
     .O_EXP_SUM(),
     .O_VLD    (out_vld ),

@@ -26,17 +26,17 @@ logic O_LOAD_WEIGHT_VLD;
 logic O_OUT_VLD;
 logic [D_W-1:0] O_OUT[0:SA_R-1][0:SA_C-1] ;
 
-logic [D_W-1:0] X_MATRIX_TRANSPOSE [0:SA_R-1][0:SA_C-1];
-logic [D_W-1:0] X_MATRIX_ROTATE [0:SA_R-1][0:SA_C-1];
-
-generate
-    for(genvar i=0;i<SA_R;i=i+1)begin
-        for(genvar j=0;j<SA_C;j=j+1)begin
-            assign X_MATRIX_TRANSPOSE[i][j] = X_MATRIX[j][i];
-            assign X_MATRIX_ROTATE[i][j] = X_MATRIX_TRANSPOSE[i][SA_C-1-j];
-        end
-    end
-endgenerate
+//logic [D_W-1:0] X_MATRIX_TRANSPOSE [0:SA_R-1][0:SA_C-1];
+//logic [D_W-1:0] X_MATRIX_ROTATE [0:SA_R-1][0:SA_C-1];
+//
+//generate
+//    for(genvar i=0;i<SA_R;i=i+1)begin
+//        for(genvar j=0;j<SA_C;j=j+1)begin
+//            assign X_MATRIX_TRANSPOSE[i][j] = X_MATRIX[j][i];
+//            assign X_MATRIX_ROTATE[i][j] = X_MATRIX_TRANSPOSE[i][SA_C-1-j];
+//        end
+//    end
+//endgenerate
 SA_wrapper#(
     .D_W        (D_W ),
     .SA_R       (SA_R),  //SA_ROW,        SA.shape = (SA_R,SA_C)
@@ -45,7 +45,7 @@ SA_wrapper#(
     .I_CLK              (I_CLK             ),
     .I_RST_N            (I_RST_N           ),
     .I_LOAD_FLAG        (I_LOAD_FLAG       ),
-    .I_X_MATRIX         (X_MATRIX_ROTATE   ),
+    .I_X_MATRIX         (X_MATRIX          ),
     .I_W_MATRIX         (W_MATRIX          ),
     .I_ACCUMULATE_SIGNAL(1'b1),
     .O_INPUT_FIFO_EMPTY (O_INPUT_FIFO_EMPTY),

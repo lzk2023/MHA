@@ -31,7 +31,7 @@ generate
         div_fast #(
             .D_W           (16),
             .FRAC_BIT      (13),   //fraction bits
-            .USE_IN_SOFTMAX(0 )
+            .USE_IN_SOFTMAX(1 )
         )u_fast_divider_16bit(
             .I_CLK      (I_CLK    ),
             .I_RST_N    (I_RST_N  ),
@@ -53,7 +53,7 @@ generate
             .IN_DW(8)
         )u_mul_fast(
             .I_IN1    (out_exp[i]),
-            .I_IN2    (quotient[i][D_W*2-1:D_W]),
+            .I_IN2    ({quotient[i][15],quotient[i][6:0]}),
             .O_MUL_OUT(mul_o[i])
         );
     end

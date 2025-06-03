@@ -5,7 +5,7 @@ function  bit [7:0] mul_signed8(
     input bit [7:0] b
     );
     bit [15:0] c;
-    c = a*b;
+    c = $signed(a)*$signed(b);
     if(c[4])begin
         mul_signed8 = {c[15],c[11:5]} + 1;
     end else begin

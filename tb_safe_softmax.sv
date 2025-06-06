@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 module tb_safe_softmax();
-    localparam D_W = 8;
+    localparam D_W = 16;
     localparam NUM = 16;
     bit                 clk  ;
     bit                 rst_n;
@@ -10,6 +10,8 @@ module tb_safe_softmax();
     logic [D_W-1:0] out_data[0:NUM-1];
     real                out_data_real[16];
     real                out_data_compare[16];
+    logic [D_W-1:0] O_X_MAX  ;
+    logic [D_W-1:0] O_EXP_SUM;
 
     integer div;
     integer i,j;
@@ -40,10 +42,10 @@ module tb_safe_softmax();
     .I_RST_N  (rst_n),
     .I_START  (start),//keep when calculate
     .I_DATA   (data ),
-    .I_X_MAX  (8'h78),
-    .I_EXP_SUM(16'h008D),//0_0000000_0000_0000,1 signal bit,7int bit,8frac bit
-    .O_X_MAX  (),
-    .O_EXP_SUM(),
+    .I_X_MAX  (16'h0000),
+    .I_EXP_SUM(16'h0000),//0_0000000_0000_0000,1 signal bit,7int bit,8frac bit
+    .O_X_MAX  (O_X_MAX  ),
+    .O_EXP_SUM(O_EXP_SUM),
     .O_VLD    (out_vld ),
     .O_DATA   (out_data)
     );

@@ -23,29 +23,33 @@ assign mul_3 = mul_3_full[12] ? {mul_3_full[27],2'b11,mul_3_full[25:13]} + 1 : {
 assign mul_1 = mul_1_full[12] ? {mul_1_full[27],2'b11,mul_1_full[25:13]} + 1 : {mul_1_full[27],2'b11,mul_1_full[25:13]};//round
 //assign mul_2_full = $signed(14'd5678) * $signed(vi_neg);
 assign mul_2 = mul_2_full[12] ? {mul_2_full[27],2'b11,mul_2_full[25:13]} + 1 : {mul_2_full[27],2'b11,mul_2_full[25:13]};//round
-mul_fast #(
-    .IN_DW(14)
-)u_mul_3(
-    .I_IN1     (vi_neg   ),
-    .I_IN2     (ln2_div_2 ),
-    .O_MUL_OUT (mul_3_full)//assign mul_1_full = $signed(14'd4015) * $signed(vi_neg);
-);
+//mul_fast #(
+//    .IN_DW(14)
+//)u_mul_3(
+//    .I_IN1     (vi_neg   ),
+//    .I_IN2     (ln2_div_2 ),
+//    .O_MUL_OUT (mul_3_full)//assign mul_1_full = $signed(14'd4015) * $signed(vi_neg);
+//);
+assign mul_3_full = $signed(vi_neg) * $signed(ln2_div_2);
 
-mul_fast #(
-    .IN_DW(14)
-)u_mul_1(
-    .I_IN1     (vi_neg   ),
-    .I_IN2     (ln_2_div_sqrt2 ),
-    .O_MUL_OUT (mul_1_full)//assign mul_1_full = $signed(14'd4015) * $signed(vi_neg);
-);
+//mul_fast #(
+//    .IN_DW(14)
+//)u_mul_1(
+//    .I_IN1     (vi_neg   ),
+//    .I_IN2     (ln_2_div_sqrt2 ),
+//    .O_MUL_OUT (mul_1_full)//assign mul_1_full = $signed(14'd4015) * $signed(vi_neg);
+//);
+assign mul_1_full = $signed(vi_neg) * $signed(ln_2_div_sqrt2);
 
-mul_fast #(
-    .IN_DW(14)
-)u_mul_2(
-    .I_IN1     (vi_neg   ),
-    .I_IN2     (ln_2 ),//assign mul_2_full = $signed(14'd5678) * $signed(vi_neg);
-    .O_MUL_OUT (mul_2_full)
-);
+//mul_fast #(
+//    .IN_DW(14)
+//)u_mul_2(
+//    .I_IN1     (vi_neg   ),
+//    .I_IN2     (ln_2 ),//assign mul_2_full = $signed(14'd5678) * $signed(vi_neg);
+//    .O_MUL_OUT (mul_2_full)
+//);
+assign mul_2_full = $signed(vi_neg) * $signed(ln_2);
+
 always_comb begin
     if($signed(vi_neg) >= $signed(14'b10_0000_0000_0001) & $signed(vi_neg) <= $signed(14'b10_1000_0111_0110))begin//2^x = (ln2/2)*x + (1+ln2)/2   (-1<x<-0.735595703125)
         result = 16'd6935 + mul_3;

@@ -22,8 +22,8 @@ enum logic [3:0] {
     S_END  = 4'b1000 
 } state;
 
-logic [7:0]  sel_16_max;
-logic [7:0]  data_x_max;
+logic [15:0] sel_16_max;
+logic [15:0] data_x_max;
 logic [15:0] data_e_x [0:NUM-1];
 logic [15:0] data_e_x_ff [0:NUM-1];
 logic [23:0] data_e_x_ff_sum;//extend 8 bits,2^10 = 1024
@@ -43,7 +43,7 @@ assign O_X_MAX = data_x_max;
 assign O_EXP_SUM = data_e_x_ff_sum[23:8];
 
 sel_max#(
-    .D_W(8)
+    .D_W(16)
 )u_sel_max(
     .I_DATA(I_DATA),
     .O_MAX (sel_16_max)
@@ -84,13 +84,14 @@ generate
             safe_softmax_exp #(
                 .D_W(D_W)
             )u_exp_x_16bit(         //data format:16bit
-                .I_X  (I_DATA[i]) ,
+                .I_X  (I_DATA[i] - data_x_max) ,
                 .O_EXP(data_e_x[i])
             );
 
             div_fast #(
                 .D_W     (D_W),
-                .FRAC_BIT(13)    //fraction bits
+                .FRAC_BIT(13),    //fraction bits
+                .USE_IN_SOFTMAX(1)
             )u_fast_divider_16bit(
                 .I_CLK      (I_CLK    ),
                 .I_RST_N    (I_RST_N  ),
@@ -109,17 +110,18 @@ assign div_vld_all = & div_vld;
 safe_softmax_exp #(
     .D_W(16)
 )u_exp_x_cal_li(         //data format:16bit
-    .I_X  ({I_X_MAX,8'd0} - {O_X_MAX,8'd0}) ,
+    .I_X  (I_X_MAX - O_X_MAX) ,
     .O_EXP(exp_m_old_sub_m_new)
 );
 
-mul_fast #(
-    .IN_DW(24)
-)u_mul_in_exp(
-    .I_IN1     ({I_EXP_SUM,8'b0}),
-    .I_IN2     ({exp_m_old_sub_m_new[15],8'b0,exp_m_old_sub_m_new[14:0]}),//{exp[15],13'b0,exp[14:13],exp[12:5]}
-    .O_MUL_OUT (mul_out_47)
-);
+//mul_fast #(
+//    .IN_DW(24)
+//)u_mul_in_exp(
+//    .I_IN1     ({I_EXP_SUM,8'b0}),
+//    .I_IN2     ({exp_m_old_sub_m_new[15],8'b0,exp_m_old_sub_m_new[14:0]}),
+//    .O_MUL_OUT (mul_out_47)
+//);
+assign mul_out_47 = $signed({I_EXP_SUM,8'b0}) * $signed({exp_m_old_sub_m_new[15],8'b0,exp_m_old_sub_m_new[14:0]});
 always_comb begin
     data_e_x_ff_sum = {mul_out_47[47],mul_out_47[35:13]};//li_new = li_old*e^(m_i-1 - m_i) + e^(x-mi)
     for(j=0;j<NUM;j=j+1)begin
@@ -174,13 +176,7 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
                     if(add_div_cnt < 1)begin
                         if(div_vld_all)begin
                             add_div_cnt <= add_div_cnt + 1;
-                            for(k=0;k<NUM;k=k+1)begin
-                                if(quotient[k][7] == 1)begin
-                                    O_DATA[k] <= quotient[k][15:8] + 1;   //round
-                                end else begin
-                                    O_DATA[k] <= quotient[k][15:8];
-                                end
-                            end
+                            O_DATA <= quotient;//
                         end else begin
                             add_div_cnt <= add_div_cnt;
                         end

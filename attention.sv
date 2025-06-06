@@ -7,7 +7,7 @@
 // calculate_matrix_1 ->    SA (16 X 16)
 ///////////////////////////////////////////////
 module attention#(
-    parameter D_W   = 8,
+    parameter D_W   = 16,
     parameter SA_R  = 16,
     parameter SA_C  = 16,
     parameter DIM   = 16,       //sequence length
@@ -52,7 +52,7 @@ module attention#(
     output logic [5:0]     O_BRAM_SEL_O_LINE                   ,
     output logic [2:0]     O_BRAM_SEL_O_COL                     
 );
-localparam S_DK_VALUE = 8'd3;//0.08838*32,1/(sqrt(dk=128))
+localparam S_DK_VALUE = 16'd724;//0.08838*32,1/(sqrt(dk=128))
 enum logic [3:0] {
     S_IDLE     = 4'b0000,
     S_LOAD_Q_K = 4'b0001,//load Q,K from bram
@@ -65,19 +65,19 @@ enum logic [3:0] {
     S_O_WRMEM  = 4'b1100 //upd O_new = (diag(li_new)^-1 * diag(li)*exp(mi-mi_new)) * O_old + O
 } state;
 
-logic [7:0]  i_softmax_m;//old mi
-logic [7:0]  o_softmax_m;//new mi
-logic [15:0] i_softmax_l;//old li
-logic [15:0] o_softmax_l;//new li
-logic [7:0]  mi_old[0:15];
-logic [15:0] li_old[0:15];
-logic [7:0]  m_reg [0:1023];                                    //store mi                           
-logic [15:0] l_reg [0:1023];                                    //store li                           
-logic [7:0]  o_coefficient[0:15];
-logic [7:0]  coefficient[0:15];
+logic [15:0]  i_softmax_m;//old mi
+logic [15:0]  o_softmax_m;//new mi
+logic [15:0]  i_softmax_l;//old li
+logic [15:0]  o_softmax_l;//new li
+logic [15:0]  mi_old[0:15];
+logic [15:0]  li_old[0:15];
+logic [15:0]  m_reg [0:1023];                                    //store mi                           
+logic [15:0]  l_reg [0:1023];                                    //store li                           
+logic [15:0]  o_coefficient[0:15];
+logic [15:0]  coefficient[0:15];
 logic coef_upd_ena;
 logic coef_upd_vld;
-logic [7:0] coef_matrix [0:SA_R-1][0:SA_C-1];
+logic [15:0] coef_matrix [0:SA_R-1][0:SA_C-1];
 
 logic [5:0]     sel_q_o;//  1024/16 = 64,select tiling Q,O,mi,li
 logic [5:0]     sel_k_v;//  1024/16 = 64,select tiling K,V
@@ -124,7 +124,7 @@ endgenerate
 always@(posedge I_CLK or negedge I_RST_N)begin
     if(!I_RST_N)begin
         state             <= S_IDLE        ;
-        m_reg             <= '{default:8'b0};
+        m_reg             <= '{default:'b0};
         l_reg             <= '{default:'b0};
         mi_old            <= '{default:'b0};
         li_old            <= '{default:'b0};
@@ -249,7 +249,7 @@ always@(posedge I_CLK or negedge I_RST_N)begin
             end
             S_SOFTMAX :begin
                 if(softmax_out_vld)begin
-                    O_MAT_2[sel_dim][0:SA_C-1]  <= softmax_out ;
+                    O_MAT_1[sel_dim][0:SA_C-1]  <= softmax_out ;
                     m_reg[sel_q_o*16 + sel_dim] <= o_softmax_m;//upd mi,li
                     l_reg[sel_q_o*16 + sel_dim] <= o_softmax_l;//upd mi,li
                     if(sel_dim == 5'd15)begin
@@ -257,14 +257,14 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                         sel_dim     <= 0       ;
                         O_SA_LOAD   <= 1       ;
                         softmax_start <= 0     ;
-                        O_MAT_1     <= I_BRAM_RD_V_MAT;
+                        O_MAT_2     <= I_BRAM_RD_V_MAT;
                         sel_col     <= sel_col+1;
                         //O_BRAM_V_ENA <= 1'b0   ;//stop load
                     end else begin
                         sel_dim     <= sel_dim + 1;
                     end
                 end else begin
-                    O_MAT_2 <= O_MAT_2    ;
+                    O_MAT_1 <= O_MAT_1    ;
                     sel_dim <= sel_dim    ;
                     O_BRAM_V_ENA <= 1'b1 ;
                     O_BRAM_SEL_V_LINE <= sel_k_v;
@@ -293,8 +293,8 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                     if(sel_col == 3'd7)begin
                         state       <= state     ;
                         sel_col     <= sel_col   ;
-                        O_MAT_1     <= I_BRAM_RD_V_MAT;
-                        O_MAT_2     <= O_MAT_2;//P
+                        O_MAT_1     <= O_MAT_1   ;//P
+                        O_MAT_2     <= I_BRAM_RD_V_MAT;
                         if(sa_vld_cnt > 3'd4)begin
                             O_SA_LOAD   <= 0         ;
                         end else begin
@@ -303,8 +303,8 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                     end else begin
                         state       <= state      ;
                         sel_col     <= sel_col + 1;
-                        O_MAT_1     <= I_BRAM_RD_V_MAT;
-                        O_MAT_2     <= O_MAT_2;//P
+                        O_MAT_1     <= O_MAT_1    ;//P
+                        O_MAT_2     <= I_BRAM_RD_V_MAT;
                         O_SA_LOAD   <= 1'b1       ;
                     end
                 end else begin
@@ -319,8 +319,8 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                 if(I_BRAM_RD_O_VLD)begin
                     state        <= S_O_UPD;
                     O_BRAM_O_ENA <= 1'b0;
-                    O_MAT_1      <= I_BRAM_RD_O_MAT;
-                    O_MAT_2      <= coef_matrix;//
+                    O_MAT_1      <= coef_matrix;
+                    O_MAT_2      <= I_BRAM_RD_O_MAT;//
                     O_SA_LOAD    <= 1'b1;
                     sel_col      <= sel_col + 1;
                 end else begin
@@ -357,8 +357,8 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                     if(sel_col == 3'd7)begin
                         state <= state;
                         sel_col     <= sel_col   ;
-                        O_MAT_1     <= I_BRAM_RD_O_MAT;
-                        O_MAT_2     <= O_MAT_2;//matrix: coefficient
+                        O_MAT_1     <= O_MAT_1   ;//matrix: coefficient
+                        O_MAT_2     <= I_BRAM_RD_O_MAT;
                         if(sa_vld_cnt > 3'd4)begin
                             O_SA_LOAD   <= 1'b0      ;
                         end else begin
@@ -367,8 +367,8 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                     end else begin
                         state       <= state      ;
                         sel_col     <= sel_col + 1;
-                        O_MAT_1     <= I_BRAM_RD_O_MAT;
-                        O_MAT_2     <= O_MAT_2;//matrix: coefficient
+                        O_MAT_1     <= O_MAT_1    ;//matrix: coefficient
+                        O_MAT_2     <= I_BRAM_RD_O_MAT;
                         O_SA_LOAD   <= 1'b1       ;
                     end
                 end else begin

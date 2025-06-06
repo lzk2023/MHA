@@ -1,13 +1,13 @@
 `timescale 1ns/1ps
 module tb_o_matrix_upd();
-localparam D_W = 8;
+localparam D_W = 16;
 localparam TIL = 16;
 bit I_CLK   ;
 bit I_RST_N ;
 bit I_ENA   ;
-bit [D_W*2-1:0] I_LI_OLD [0:TIL-1];
+bit [D_W-1:0]   I_LI_OLD [0:TIL-1];
 bit [D_W-1:0]   I_MI_OLD [0:TIL-1];
-bit [D_W*2-1:0] I_LI_NEW [0:TIL-1];
+bit [D_W-1:0]   I_LI_NEW [0:TIL-1];
 bit [D_W-1:0]   I_MI_NEW [0:TIL-1];
 logic O_VLD        ;
 logic [D_W-1:0] O_COEFFICIENT [0:TIL-1];
@@ -30,9 +30,9 @@ o_matrix_upd#(
 
 initial begin
     I_LI_OLD = '{16{16'b0_000_0000_0110_0000}};//3
-    I_MI_OLD = '{16{8'b0_01_01010}};//1.3125
+    I_MI_OLD = '{16{16'b0_01_01010_0000_0000}};//1.3125
     I_LI_NEW = '{16{16'b0_000_0000_1000_0000}};//4
-    I_MI_NEW = '{16{8'b0_01_11000}};//1.75
+    I_MI_NEW = '{16{16'b0_01_11000_0000_0000}};//1.75
     #100
     I_RST_N = 1;
     I_ENA   = 1;
@@ -41,9 +41,9 @@ initial begin
     I_ENA = 0;
     #200
     I_LI_OLD = '{16{16'b0_000_0000_0110_0000}};//3
-    I_MI_OLD = '{16{8'b0_01_11000}};//1.75
+    I_MI_OLD = '{16{16'b0_01_11000_0000_0000}};//1.75
     I_LI_NEW = '{16{16'b0_000_0000_1000_0000}};//4
-    I_MI_NEW = '{16{8'b0_01_01010}};//1.3125
+    I_MI_NEW = '{16{16'b0_01_01010_0000_0000}};//1.3125
     I_ENA = 1;
     wait(O_VLD)
     @(posedge I_CLK)

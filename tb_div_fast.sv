@@ -52,12 +52,12 @@ logic [D_W-1:0] O_QUOTIENT ;
 logic           O_OUT_VLD  ;
 
 bit           correct    ;
-bit [D_W-1+13:0] q_compare_full;
+bit [D_W-1+8:0] q_compare_full;
 bit [D_W-1:0] q_compare;
-bit [D_W-1+13:0] dividend_full;
+bit [D_W-1+8:0] dividend_full;
 div_fast #(
     .D_W (16),
-    .FRAC_BIT(13)
+    .FRAC_BIT(8)
 )dut_divider(
     .I_CLK      (I_CLK      ),
     .I_RST_N    (I_RST_N    ),
@@ -67,9 +67,9 @@ div_fast #(
     .O_QUOTIENT (O_QUOTIENT ),//商
     .O_VLD      (O_OUT_VLD  )  
 );
-assign dividend_full = I_DIVIDEND << 13;
+assign dividend_full = I_DIVIDEND << 8;
 assign q_compare_full = $signed(dividend_full)/$signed(I_DIVISOR);
-assign q_compare = {q_compare_full[D_W-1+13],q_compare_full[D_W-2:0]};
+assign q_compare = {q_compare_full[D_W-1+8],q_compare_full[D_W-2:0]};
 //initial begin
 //    $dumpfile("vcd_divider.vcd");
 //    $dumpvars(0,tb_divider);

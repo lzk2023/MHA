@@ -2,38 +2,38 @@
 module flash_attn_top(
     input  logic          I_CLK         ,
     input  logic          I_RST_N       ,
-    input  logic          I_ATTN_START  ,
+    //input  logic          I_ATTN_START  ,
     input  logic          I_RD_BRAM_EN  ,
     input  logic [5:0]    I_RD_BRAM_LINE,
     input  logic [2:0]    I_RD_BRAM_COL ,
     output logic          O_ATTN_END    ,
     output logic          O_BRAM_RD_VLD ,
-    output logic [2047:0] O_BRAM_RD_MAT  
+    output logic [4095:0] O_BRAM_RD_MAT  
 );
 logic                SA_LOAD ;
-logic [7:0] O_MAT_1 [0:15][0:15]   ;
-logic [7:0] O_MAT_2 [0:15][0:15]   ;
-logic [7:0] O_ATTN_DATA [0:15][0:127];
+logic [15:0] O_MAT_1 [0:15][0:15]   ;
+logic [15:0] O_MAT_2 [0:15][0:15]   ;
+logic [15:0] O_ATTN_DATA [0:15][0:127];
 logic       ACCUMULATE_SIGNAL      ;
 logic       LOAD_W_SIGNAL          ;
 logic                I_SA_VLD     ;
-logic [7:0] I_SA_RESULT [0:15][0:15] ;
+logic [15:0] I_SA_RESULT [0:15][0:15] ;
 
 logic       BRAM_RD_Q_VLD;
 logic       BRAM_RD_K_VLD;
 logic       BRAM_RD_V_VLD;
 logic       BRAM_RD_O_VLD;
-logic [7:0] BRAM_RD_Q_MAT [0:15][0:15];
-logic [7:0] BRAM_RD_K_MAT [0:15][0:15];
-logic [7:0] BRAM_RD_V_MAT [0:15][0:15];
-logic [7:0] BRAM_RD_O_MAT [0:15][0:15];
+logic [15:0] BRAM_RD_Q_MAT [0:15][0:15];
+logic [15:0] BRAM_RD_K_MAT [0:15][0:15];
+logic [15:0] BRAM_RD_V_MAT [0:15][0:15];
+logic [15:0] BRAM_RD_O_MAT [0:15][0:15];
 
 logic       BRAM_Q_ENA  ;
 logic       BRAM_K_ENA  ;
 logic       BRAM_V_ENA  ;
 logic       BRAM_O_ENA  ;
 logic       BRAM_O_WEA  ;
-logic [7:0] BRAM_WR_MAT [0:15][0:15];
+logic [15:0] BRAM_WR_MAT [0:15][0:15];
 logic [5:0] BRAM_SEL_Q_LINE;
 logic [2:0] BRAM_SEL_Q_COL ;
 logic [5:0] BRAM_SEL_K_LINE;
@@ -53,12 +53,12 @@ assign O_BRAM_RD_VLD = BRAM_RD_O_VLD & O_ATTN_END;
 generate
     for(genvar i=0;i<16;i=i+1)begin
         for(genvar j=0;j<16;j=j+1)begin
-            assign O_BRAM_RD_MAT[((15-i)*16+(15-j))*8 +: 8] = BRAM_RD_O_MAT[i][j];
+            assign O_BRAM_RD_MAT[((15-i)*16+(15-j))*16 +: 16] = BRAM_RD_O_MAT[i][j];
         end
     end
 endgenerate
 attention#(
-    .D_W   (8 ),
+    .D_W   (16),
     .SA_R  (16),
     .SA_C  (16),
     .DIM   (16),       //sequence length
@@ -66,7 +66,7 @@ attention#(
 )u_dut_attention(
     .I_CLK          (I_CLK        ),
     .I_RST_N        (I_RST_N      ),
-    .I_ATTN_START   (I_ATTN_START ),
+    .I_ATTN_START   (1'b1         ),
     .I_SA_VLD       (I_SA_VLD     ),//valid from SA
     .I_SA_RESULT    (I_SA_RESULT  ),//16*16*D_W,from SA
     .I_LOAD_W_SIGNAL(LOAD_W_SIGNAL),
@@ -129,7 +129,7 @@ bram_manager u_bram_manager(
 );
 
 SA_wrapper#(
-    .D_W        (8         ),
+    .D_W        (16        ),
     .SA_R       (16        ),  //SA_ROW,        SA.shape = (SA_R,SA_C)
     .SA_C       (16        )   //SA_COLUMN,     
 ) u_dut_SA_top(

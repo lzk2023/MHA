@@ -4,24 +4,24 @@ module tb_flash_attn_top();
 
 bit       I_CLK         ;
 bit       I_RST_N       ;
-bit       I_ATTN_START  ;
+//bit       I_ATTN_START  ;
 bit       I_RD_BRAM_EN  ;
 bit [5:0] I_RD_BRAM_LINE;
 bit [2:0] I_RD_BRAM_COL ;
 
 logic          O_ATTN_END   ;
 logic          O_BRAM_RD_VLD;
-logic [2047:0] O_BRAM_RD_MAT;
+logic [4095:0] O_BRAM_RD_MAT;
 
-logic [7:0] data_matrix_compare [0:15][0:15];
-logic       data_compare_vld;
+//logic [15:0] data_matrix_compare [0:15][0:15];
+//logic       data_compare_vld;
 
 integer save_file;
 
 flash_attn_top dut_flash_attn(
     .I_CLK         (I_CLK         ),
     .I_RST_N       (I_RST_N       ),
-    .I_ATTN_START  (I_ATTN_START  ),
+//    .I_ATTN_START  (I_ATTN_START  ),
     .I_RD_BRAM_EN  (I_RD_BRAM_EN  ),
     .I_RD_BRAM_LINE(I_RD_BRAM_LINE),
     .I_RD_BRAM_COL (I_RD_BRAM_COL ),
@@ -36,9 +36,9 @@ initial begin
     #100
     I_RST_N = 1;
     #100
-    I_ATTN_START = 1;
+    //I_ATTN_START = 1;
     #10000
-    I_ATTN_START = 0;
+    //I_ATTN_START = 0;
 
     wait(O_ATTN_END);
     #100
@@ -57,18 +57,18 @@ initial begin
     $finish;
 end
 
-initial begin
-    while(1)begin
-        if(dut_flash_attn.SA_LOAD)begin
-            @(posedge dut_flash_attn.I_CLK)
-            mul_matrix_16_16(dut_flash_attn.O_MAT_1,dut_flash_attn.O_MAT_2,data_matrix_compare);
-            data_compare_vld = 1;
-        end else begin
-            @(posedge dut_flash_attn.I_CLK)
-            data_compare_vld = 0;
-        end
-    end
-end
+//initial begin
+//    while(1)begin
+//        if(dut_flash_attn.SA_LOAD)begin
+//            @(posedge dut_flash_attn.I_CLK)
+//            mul_matrix_16_16(dut_flash_attn.O_MAT_1,dut_flash_attn.O_MAT_2,data_matrix_compare);
+//            data_compare_vld = 1;
+//        end else begin
+//            @(posedge dut_flash_attn.I_CLK)
+//            data_compare_vld = 0;
+//        end
+//    end
+//end
 
 initial begin
     save_file = $fopen("H:/flash_attn_output_files/output_mat.txt");

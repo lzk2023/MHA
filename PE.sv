@@ -21,7 +21,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 module PE#(
-    parameter D_W = 8
+    parameter D_W = 16
 )
 (
     input  logic           I_CLK       ,
@@ -53,31 +53,32 @@ always_ff@(posedge I_CLK or negedge I_ASYN_RSTN)begin
     end else if(load_signal)begin
         O_X     <= I_X;
         O_W     <= I_W;
-        if(o_mul_out[4])begin//round
-            O_D     <= I_D + {o_mul_out[15],o_mul_out[11:5]} + 1;//O_D <= 0 + I_X x I_W;
+        if(o_mul_out[12])begin//round
+            O_D     <= I_D + {o_mul_out[31],o_mul_out[27:13]} + 1;//O_D <= 0 + I_X x I_W;
         end else begin
-            O_D     <= I_D + {o_mul_out[15],o_mul_out[11:5]};
+            O_D     <= I_D + {o_mul_out[31],o_mul_out[27:13]};
         end
         O_LOAD_RIGHT <= 1;
         O_LOAD_DOWN  <= 1;
     end else begin
         O_X     <= I_X;
         O_W     <= O_W;
-        if(o_mul_out[4])begin//round
-            O_D     <= I_D + {o_mul_out[15],o_mul_out[11:5]} + 1;   //D_W==8
+        if(o_mul_out[12])begin//round
+            O_D     <= I_D + {o_mul_out[31],o_mul_out[27:13]} + 1;   //D_W==8
         end else begin
-            O_D     <= I_D + {o_mul_out[15],o_mul_out[11:5]};   //D_W==8
+            O_D     <= I_D + {o_mul_out[31],o_mul_out[27:13]};   //D_W==8
         end
         O_LOAD_RIGHT <= 0;
         O_LOAD_DOWN  <= 0;
     end
 end
 
-mul_fast #(
-    .IN_DW(D_W)
-)u_mul_16(
-    .I_IN1    (I_X),
-    .I_IN2    (O_W),
-    .O_MUL_OUT(o_mul_out)
-);
+//mul_fast #(
+//    .IN_DW(D_W)
+//)u_mul_16(
+//    .I_IN1    (I_X),
+//    .I_IN2    (O_W),
+//    .O_MUL_OUT(o_mul_out)
+//);
+assign o_mul_out = $signed(I_X) * $signed(O_W);
 endmodule

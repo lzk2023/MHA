@@ -6,9 +6,9 @@ module matrix_mul(
 );
 logic [31:0] mat_o_mul [0:15][0:15];
 generate
-    for(genvar x=0;x<SA_R;x=x+1)begin:gen_mat_mul
-        for(genvar y=0;y<SA_C;y=y+1)begin
-            assign mat_o_mul[i][j] = I_MAT[i][j] * I_VEC[i];
+    for(genvar i=0;i<16;i=i+1)begin:gen_mat_mul
+        for(genvar j=0;j<16;j=j+1)begin
+            assign mat_o_mul[i][j] = $signed(I_MAT[i][j]) * $signed(I_VEC[i]);
             assign O_MAT[i][j] = mat_o_mul[i][j][12] ? {mat_o_mul[i][j][31],mat_o_mul[i][j][27:13]} + 1:{mat_o_mul[i][j][31],mat_o_mul[i][j][27:13]};
         end
     end

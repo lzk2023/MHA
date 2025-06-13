@@ -92,13 +92,17 @@ logic [5:0]     sel_k_v;//  1024/16 = 64,select tiling K,V
 logic [2:0]     sel_col;//  select tiling column
 logic [2:0]     sa_vld_cnt;
 logic [D_W-1:0] key_data_matrix_transpose [0:SA_R-1][0:SA_C-1]; //matrix:K^T
-logic [D_W-1:0] scale_matrix [0:SA_R-1][0:SA_C-1];              //matrix:scale(*1/sqrt(d_k))
+logic [D_W-1:0] scale_vector [0:SA_R-1];              //vector:scale(*1/sqrt(d_k))
 
 logic [D_W-1:0] softmax_out [0:15] ;
 
-logic [4:0]     sel_dim      ;//1~16,softmax & select P
+logic [3:0]     sel_dim      ;//1~16,softmax & select P
 logic           softmax_start;
 logic           softmax_out_vld;
+
+logic [D_W-1:0] mat_mul_mat_in [0:SA_R-1][0:SA_C-1];
+logic [D_W-1:0] mat_mul_vec_in [0:SA_R-1]          ;
+logic [D_W-1:0] mat_mul_mat_o  [0:SA_R-1][0:SA_C-1];
 
 logic [D_W-1:0] matrix_adder_in [0:SA_R-1][0:SA_C-1];
 logic [D_W-1:0] matrix_adder_out [0:SA_R-1][0:SA_C-1];
@@ -118,13 +122,7 @@ endgenerate
 
 generate      //assign matrix scale 
     for(genvar i=0;i<SA_R;i=i+1)begin
-        for(genvar j=0;j<SA_C;j=j+1)begin
-            if(i==j)begin
-                assign scale_matrix [i][j]= S_DK_VALUE;
-            end else begin
-                assign scale_matrix [i][j]= 0;
-            end
-        end
+        assign scale_vector[i] = S_DK_VALUE;
     end
 endgenerate
 //////////////////////////////////////////////////////////////////////
@@ -163,6 +161,8 @@ always@(posedge I_CLK or negedge I_RST_N)begin
         sel_dim           <= 0             ;
         O_DATA_VLD        <= 0             ;
         O_ATTN_DATA       <= '{default:'b0};
+        mat_mul_mat_in    <= '{default:'b0};
+        mat_mul_vec_in    <= '{default:'b0};
     end else begin
         case(state)
             S_IDLE    :begin
@@ -209,9 +209,8 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                         state      <= S_SCALE     ;
                         sa_vld_cnt <= 3'd0        ;
                         sel_col    <= 3'd0        ;
-                        O_MAT_1    <= I_SA_RESULT ;//S
-                        O_MAT_2    <= scale_matrix;//diag(1/sqrt(d_k))
-                        O_SA_LOAD   <= 1'b1       ;
+                        mat_mul_mat_in <= I_SA_RESULT;
+                        mat_mul_vec_in <= scale_vector;
                         O_ACC_SIGNAL <= 1'b0;
                         O_BRAM_Q_ENA <= 1'b0 ;
                         O_BRAM_K_ENA <= 1'b0 ;
@@ -249,22 +248,16 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                 end
             end
             S_SCALE   :begin
-                if(I_SA_VLD)begin
-                    state       <= S_SOFTMAX  ;
-                    softmax_start <= 1        ;
-                    O_MAT_1     <= I_SA_RESULT;//S/sqrt(d_k)
-                    O_SA_LOAD   <= 0          ;
-                end else begin
-                    state       <= state      ;
-                    O_SA_LOAD   <= 0          ;
-                end
+                state         <= S_SOFTMAX    ;
+                softmax_start <= 1            ;
+                O_MAT_1       <= mat_mul_mat_o;//S/sqrt(d_k)
             end
             S_SOFTMAX :begin
                 if(softmax_out_vld)begin
                     O_MAT_1[sel_dim][0:SA_C-1]  <= softmax_out ;
                     mi_new[sel_dim]             <= o_softmax_m;
                     li_new[sel_dim]             <= o_softmax_l;
-                    if(sel_dim == 5'd15)begin
+                    if(sel_dim == 4'd15)begin
                         state       <= S_P_V   ;
                         sel_dim     <= 0       ;
                         O_SA_LOAD   <= 1       ;
@@ -532,6 +525,12 @@ generate
         assign matrix_adder_in[i] = O_ATTN_DATA[i][sa_vld_cnt*16 +: 16];//assign matrix_adder_in = O_ATTN_DATA[0:SA_R-1][sa_vld_cnt*16 +: 16]
     end
 endgenerate
+
+matrix_mul u_mat_mul(
+    .I_MAT(mat_mul_mat_in),
+    .I_VEC(mat_mul_vec_in),
+    .O_MAT(mat_mul_mat_o )
+);
 
 matrix_add#(
     .D_W  (D_W ),

@@ -71,8 +71,16 @@ logic [15:0]  i_softmax_l;//old li
 logic [15:0]  o_softmax_l;//new li
 logic [15:0]  mi_old[0:15];
 logic [15:0]  li_old[0:15];
-logic [15:0]  m_reg [0:1023];                                    //store mi                           
-logic [15:0]  l_reg [0:1023];                                    //store li                           
+logic [15:0]  mi_new[0:15];
+logic [15:0]  li_new[0:15];
+logic         mi_ena      ;
+logic         mi_wea      ;
+logic [255:0] mi_dina     ;
+logic [255:0] mi_douta    ;
+logic         li_ena      ;
+logic         li_wea      ;
+logic [255:0] li_dina     ;
+logic [255:0] li_douta    ;                         
 logic [15:0]  o_coefficient[0:15];
 logic [15:0]  coefficient[0:15];
 logic coef_upd_ena;
@@ -124,10 +132,12 @@ endgenerate
 always@(posedge I_CLK or negedge I_RST_N)begin
     if(!I_RST_N)begin
         state             <= S_IDLE        ;
-        m_reg             <= '{default:'b0};
-        l_reg             <= '{default:'b0};
-        mi_old            <= '{default:'b0};
-        li_old            <= '{default:'b0};
+        mi_new            <= '{default:'b0};
+        li_new            <= '{default:'b0};
+        mi_ena            <= 'b0           ;
+        mi_wea            <= 'b0           ;
+        li_ena            <= 'b0           ;
+        li_wea            <= 'b0           ;
         sel_q_o           <= 6'd0          ;
         sel_k_v           <= 6'd0          ;
         sel_col           <= 3'd0          ;
@@ -164,6 +174,8 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                     sel_col     <= 3'd0      ;
                 end else begin
                     state       <= state   ;
+                    mi_ena      <= 1'b0    ;
+                    li_ena      <= 1'b0    ;
                     O_MAT_1     <= '{default:'b0}       ;
                     O_MAT_2     <= '{default:'b0}       ;
                     O_SA_LOAD   <= 0       ;
@@ -176,8 +188,8 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                     O_BRAM_K_ENA <= 1'b0;
                     O_MAT_1      <= I_BRAM_RD_Q_MAT;
                     O_MAT_2      <= key_data_matrix_transpose;
-                    mi_old       <= m_reg[sel_q_o*16 +: 16];//store mi,li
-                    li_old       <= l_reg[sel_q_o*16 +: 16];//store mi,li
+                    mi_ena       <= 1'b1;
+                    li_ena       <= 1'b1;
                     O_SA_LOAD    <= 1'b1;
                     O_ACC_SIGNAL <= 1'b1;
                     sel_col      <= sel_col + 1;
@@ -250,8 +262,8 @@ always@(posedge I_CLK or negedge I_RST_N)begin
             S_SOFTMAX :begin
                 if(softmax_out_vld)begin
                     O_MAT_1[sel_dim][0:SA_C-1]  <= softmax_out ;
-                    m_reg[sel_q_o*16 + sel_dim] <= o_softmax_m;//upd mi,li
-                    l_reg[sel_q_o*16 + sel_dim] <= o_softmax_l;//upd mi,li
+                    mi_new[sel_dim]             <= o_softmax_m;
+                    li_new[sel_dim]             <= o_softmax_l;
                     if(sel_dim == 5'd15)begin
                         state       <= S_P_V   ;
                         sel_dim     <= 0       ;
@@ -381,6 +393,8 @@ always@(posedge I_CLK or negedge I_RST_N)begin
             end
             S_O_WRMEM :begin
                 if(sel_col == 3'd7)begin
+                    mi_wea          <= 1'b0;
+                    li_wea          <= 1'b0;
                     O_BRAM_O_ENA    <= 1'b0;
                     O_BRAM_O_WEA    <= 1'b0;
                     if(sel_q_o == 6'd63)begin
@@ -403,6 +417,8 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                         state      <= S_LOAD_Q_K ;
                     end
                 end else begin
+                    mi_wea          <= 1'b1;
+                    li_wea          <= 1'b1;
                     O_BRAM_O_ENA    <= 1'b1;
                     O_BRAM_O_WEA    <= 1'b1;
                     O_BRAM_SEL_O_LINE <= sel_q_o;
@@ -447,7 +463,39 @@ generate
         end
     end
 endgenerate
+/////////////////////////mi & li bram/////////////////////////////////////
+generate
+    for(genvar i=0;i<16;i=i+1)begin
+        assign mi_dina[(15-i)*16 +: 16] = mi_new[i];
+        assign mi_old[i] = mi_douta[(15-i)*16 +: 16];
+    end
+endgenerate
 
+generate
+    for(genvar i=0;i<16;i=i+1)begin
+        assign li_dina[(15-i)*16 +: 16] = li_new[i];
+        assign li_old[i] = li_douta[(15-i)*16 +: 16];
+    end
+endgenerate
+
+mi_ram u_mi_ram (
+  .clka (I_CLK   ), // input wire clka
+  .ena  (mi_ena  ), // input wire ena
+  .wea  (mi_wea  ), // input wire [0 : 0] wea
+  .addra(sel_q_o ), // input wire [5 : 0] addra
+  .dina (mi_dina ), // input wire [255 : 0] dina
+  .douta(mi_douta)  // output wire [255 : 0] douta
+);
+
+li_ram u_li_ram (
+  .clka (I_CLK   ), // input wire clka
+  .ena  (li_ena  ), // input wire ena
+  .wea  (li_wea  ), // input wire [0 : 0] wea
+  .addra(sel_q_o ), // input wire [5 : 0] addra
+  .dina (li_dina ), // input wire [255 : 0] dina
+  .douta(li_douta)  // output wire [255 : 0] douta
+);
+/////////////////////////mi & li bram/////////////////////////////////////
 safe_softmax#(  
     .D_W(D_W),
     .NUM(16) //dimention
@@ -473,8 +521,8 @@ o_matrix_upd#(
     .I_ENA        (coef_upd_ena ),//keep
     .I_LI_OLD     (li_old       ),
     .I_MI_OLD     (mi_old       ),
-    .I_LI_NEW     (l_reg[sel_q_o*16 +: 16]),
-    .I_MI_NEW     (m_reg[sel_q_o*16 +: 16]),
+    .I_LI_NEW     (li_new       ),
+    .I_MI_NEW     (mi_new       ),
     .O_VLD        (coef_upd_vld ),
     .O_COEFFICIENT(o_coefficient)
 );

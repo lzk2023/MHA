@@ -3,7 +3,7 @@
 module safe_softmax_lut_neg#(
     parameter D_W = 16  //support data width = 16 or 8 bits
 )(
-    input  logic [D_W-4:0] vi      ,
+    input  logic [4:0] vi      ,
     output logic [D_W-1:0] result  
 );
 //localparam ln_2 = 14'd5678;
@@ -60,7 +60,7 @@ module safe_softmax_lut_neg#(
 //    end
 //end
 always_comb begin
-    case(vi[D_W-4:8])
+    case(vi)
         5'd 0:result = 16'd8192;
         5'd 1:result = 16'd8016;
         5'd 2:result = 16'd7845;

@@ -3,7 +3,8 @@
 //试商法除法器，位宽可自定义
 ////////////////////////////////
 module divider#(
-    parameter D_W = 16
+    parameter D_W            = 16,
+    parameter USE_IN_SOFTMAX = 0
 )(
     input  logic           I_CLK      ,
     input  logic           I_RST_N    ,
@@ -11,7 +12,7 @@ module divider#(
     input  logic [D_W-1:0] I_DIVIDEND ,//被除数,计算时应保持
     input  logic [D_W-1:0] I_DIVISOR  ,//除数,计算时应保持
     output logic [D_W-1:0] O_QUOTIENT ,//商
-    output logic           O_OUT_VLD    
+    output logic           O_VLD    
 );
 localparam K_W     = $clog2(D_W-1+13);
 enum logic [3:0] {
@@ -34,7 +35,13 @@ logic [D_W-2+13:0]  quotient_ff    ;
 logic [K_W-1:0]     k              ;
 
 assign dividend_msb = I_DIVIDEND[D_W-1]  ;//被除数最高位
-assign dividend_pos = (dividend_msb ? (~I_DIVIDEND[D_W-2:0]+1):I_DIVIDEND[D_W-2:0]) << 13;//被除数绝对值
+generate
+    if(USE_IN_SOFTMAX == 0)begin
+        assign dividend_pos = (dividend_msb ? (~I_DIVIDEND[D_W-2:0]+1):I_DIVIDEND[D_W-2:0]) << 13;//被除数绝对值
+    end else begin
+        assign dividend_pos = (dividend_msb ? (~I_DIVIDEND[D_W-2:0]+1):I_DIVIDEND[D_W-2:0]) << 13 - 8;//被除数绝对值
+    end
+endgenerate
 assign divisor_msb  = I_DIVISOR[D_W-1]   ;//除数最高位
 assign divisor_pos  = divisor_msb ? (~I_DIVISOR[D_W-2:0]+1):I_DIVISOR[D_W-2:0];//除数绝对值
 
@@ -42,7 +49,7 @@ assign div_sub = dividend_pos_ff-divisor_pos;
 assign quotient_full[D_W-2+13:0] = (quotient_ff == 0) ? 0 : 
                             quotient_full[D_W-1+13] ? ~quotient_ff+1 : quotient_ff;
 assign quotient_full[D_W-1+13] = (quotient_ff == 0) ? 0 : dividend_msb ^ divisor_msb;
-assign O_OUT_VLD = (state == S_END) ? 1'b1 : 1'b0;
+assign O_VLD = (state == S_END) ? 1'b1 : 1'b0;
 assign O_QUOTIENT = {quotient_full[D_W-1+13],quotient_full[D_W-2:0]};
 always_ff@(posedge I_CLK or negedge I_RST_N)begin //FSM
     if(!I_RST_N)begin

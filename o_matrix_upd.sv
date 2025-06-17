@@ -28,18 +28,17 @@ generate
     for(genvar i=0;i<TIL;i=i+1)begin:divider_gen
         assign in_exp[i] = I_MI_OLD[i] - I_MI_NEW[i];
         assign O_COEFFICIENT[i] = {mul_o[i][31],mul_o[i][27:13]};
-        div_fast #(
-            .D_W           (16),
-            .FRAC_BIT      (13),   //fraction bits
-            .USE_IN_SOFTMAX(0 )
-        )u_fast_divider_16bit(
-            .I_CLK      (I_CLK    ),
-            .I_RST_N    (I_RST_N  ),
-            .I_DIV_START(I_ENA    ),//开始标志,计算时应保持
-            .I_DIVIDEND (I_LI_OLD[i]),
-            .I_DIVISOR  (I_LI_NEW[i]),//16'b0_0000_0000_00_00000
-            .O_QUOTIENT (quotient[i]),
-            .O_VLD      (divider_vld_o[i]) 
+        divider #(
+            .D_W           (D_W),
+            .USE_IN_SOFTMAX(0  )
+        )dut_divider(
+            .I_CLK      (I_CLK           ),
+            .I_RST_N    (I_RST_N         ),
+            .I_DIV_START(I_ENA           ),//开始标志,计算时应保持
+            .I_DIVIDEND (I_LI_OLD[i]     ),//被除数,计算时应保持
+            .I_DIVISOR  (I_LI_NEW[i]     ),//除数,计算时应保持
+            .O_QUOTIENT (quotient[i]     ),//商
+            .O_VLD      (divider_vld_o[i])  
         );
 
         safe_softmax_exp #(

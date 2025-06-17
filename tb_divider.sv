@@ -7,14 +7,15 @@ bit            I_DIV_START;
 bit  [D_W-1:0] I_DIVIDEND ;
 bit  [D_W-1:0] I_DIVISOR  ;
 logic [D_W-1:0] O_QUOTIENT ;
-logic           O_OUT_VLD  ;
+logic           O_VLD  ;
 
 bit           correct    ;
 bit [D_W-1+13:0] q_compare_full;
 bit [D_W-1:0] q_compare;
 bit [D_W-1+13:0] dividend_full;
 divider #(
-    .D_W (D_W)
+    .D_W           (D_W),
+    .USE_IN_SOFTMAX(0  )
 )dut_divider(
     .I_CLK      (I_CLK      ),
     .I_RST_N    (I_RST_N    ),
@@ -22,7 +23,7 @@ divider #(
     .I_DIVIDEND (I_DIVIDEND ),//被除数,计算时应保持
     .I_DIVISOR  (I_DIVISOR  ),//除数,计算时应保持
     .O_QUOTIENT (O_QUOTIENT ),//商
-    .O_OUT_VLD  (O_OUT_VLD  )  
+    .O_VLD      (O_VLD      )  
 );
 assign dividend_full = I_DIVIDEND << 13;
 assign q_compare_full = $signed(dividend_full)/$signed(I_DIVISOR);
@@ -51,7 +52,7 @@ initial begin
 end
 initial begin
     while(1)begin
-        wait(O_OUT_VLD == 1);
+        wait(O_VLD == 1);
         I_DIV_START = 0;
         #1;
         if(O_QUOTIENT == q_compare)begin
@@ -60,7 +61,7 @@ initial begin
             correct = 0;
             $display("the quotient is incorrect! fail time is %0d",$time);
         end
-        wait(O_OUT_VLD == 0);
+        wait(O_VLD == 0);
         I_DIV_START = 1;
         I_DIVIDEND  = $random;
         I_DIVISOR   = $random;

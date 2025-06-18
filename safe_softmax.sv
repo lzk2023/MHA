@@ -32,6 +32,7 @@ logic [15:0] data_x_max;
 logic [15:0] data_e_x [0:NUM-1];
 logic [23:0] data_e_x_sum_ff;//extend 8 bits,2^10 = 1024
 logic [4:0]  cnt_sum;
+logic        cnt    ;
 logic [15:0] quotient [0:NUM-1];
 logic  [15:0] data_sum;
 logic  [1:0]  add_div_cnt;
@@ -42,7 +43,7 @@ logic [15:0] in_exp_16bit [0:NUM-1];
 
 logic [15:0] exp_m_old_sub_m_new;
 logic [15:0] exp_m_old_sub_m_new_ff;
-logic [47:0] mul_out_48;
+logic [31:0] mul_out_48;
 
 assign O_X_MAX = data_x_max;
 assign O_EXP_SUM = data_e_x_sum_ff[23:8];
@@ -65,11 +66,13 @@ generate
     if(D_W == 8)begin
         for(genvar i=0;i<NUM;i=i+1)begin
             assign in_exp_16bit[i] = {I_DATA[i],8'b0} - {data_x_max,8'b0};
-            safe_softmax_exp #(
+            safe_softmax_exp_pipe #(
                 .D_W(16)
             )u_exp_x_16bit(         //data format:16bit
-                .I_X  (in_exp_16bit[i]) ,
-                .O_EXP(data_e_x[i])
+                .I_CLK  (I_CLK          ),
+                .I_RST_N(I_RST_N        ),
+                .I_X    (in_exp_16bit[i]),
+                .O_EXP  (data_e_x[i]    )
             );
 
             divider #(
@@ -87,9 +90,11 @@ generate
         end
     end else begin //D_W == 16
         for(genvar i=0;i<NUM;i=i+1)begin
-            safe_softmax_exp #(
+            safe_softmax_exp_pipe #(
                 .D_W(D_W)
             )u_exp_x_16bit(         //data format:16bit
+                .I_CLK  (I_CLK          ),
+                .I_RST_N(I_RST_N        ),
                 .I_X  (I_DATA[i] - data_x_max) ,
                 .O_EXP(data_e_x[i])
             );
@@ -112,18 +117,20 @@ endgenerate
 
 assign div_vld_all = & div_vld;
 
-safe_softmax_exp #(
+safe_softmax_exp_pipe #(
     .D_W(16)
 )u_exp_x_cal_li(         //data format:16bit
-    .I_X  (I_X_MAX - O_X_MAX) ,
-    .O_EXP(exp_m_old_sub_m_new)
+    .I_CLK   (I_CLK              ),
+    .I_RST_N (I_RST_N            ),
+    .I_X     (I_X_MAX - O_X_MAX  ) ,
+    .O_EXP   (exp_m_old_sub_m_new)
 );
 
 mul_fast #(
-    .IN_DW(24)
+    .IN_DW(16)
 )u_mul_in_exp(
-    .I_IN1     ({I_EXP_SUM,8'b0}),
-    .I_IN2     ({exp_m_old_sub_m_new_ff[15],8'b0,exp_m_old_sub_m_new_ff[14:0]}),
+    .I_IN1     (I_EXP_SUM),
+    .I_IN2     ({exp_m_old_sub_m_new_ff[15],8'b0,exp_m_old_sub_m_new_ff[14:8]}),
     .O_MUL_OUT (mul_out_48)
 );
 //DSP:assign mul_out_48 = $signed({I_EXP_SUM,8'b0}) * $signed({exp_m_old_sub_m_new_ff[15],8'b0,exp_m_old_sub_m_new_ff[14:0]});
@@ -138,6 +145,7 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
         data_e_x_sum_ff        <= 'b0   ;
         exp_m_old_sub_m_new_ff <= 'b0   ;
         cnt_sum                <= 'b0   ;
+        cnt                    <= 'b0   ;
         add_div_cnt            <= 'b0   ;
         O_VLD                  <= 'b0   ;
         O_DATA                 <= '{default:'b0};
@@ -170,8 +178,14 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
                 end
             end
             S_CAL_EXP_M :begin
-                state <= S_SUM;
-                exp_m_old_sub_m_new_ff <= exp_m_old_sub_m_new;
+                if(cnt == 1'b1)begin
+                    state <= S_SUM;
+                    cnt   <= 1'b0;
+                    exp_m_old_sub_m_new_ff <= exp_m_old_sub_m_new;
+                end else begin
+                    state <= state;
+                    cnt   <= 1'b1;
+                end
             end
             S_SUM       :begin
                 if(cnt_sum == 5'd16)begin
@@ -180,7 +194,7 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
                     cnt_sum <= 'd0;
                 end else if(cnt_sum == 5'd0)begin
                     state           <= state;
-                    data_e_x_sum_ff <= {mul_out_48[47],mul_out_48[35:13]};
+                    data_e_x_sum_ff <= {mul_out_48[31],mul_out_48[19:5],8'b0};
                     cnt_sum         <= cnt_sum + 1;
                 end else begin
                     state   <= state;

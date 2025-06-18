@@ -14,12 +14,15 @@ module o_matrix_upd#(
     output logic [D_W-1:0]   O_COEFFICIENT [0:TIL-1]
 );
 
-logic [D_W-1:0]   in_exp   [0:TIL-1];
-logic [D_W-1:0]   out_exp  [0:TIL-1];
-logic [D_W-1:0]   quotient [0:TIL-1];
-logic             div_vld           ;
-logic [TIL-1:0]   divider_vld_o     ;
-logic [D_W*2-1:0] mul_o    [0:TIL-1];
+logic [D_W-1:0]   in_exp      [0:TIL-1];
+logic [D_W-1:0]   out_exp     [0:TIL-1];
+logic [D_W-1:0]   out_exp_ff  [0:TIL-1];
+logic [D_W-1:0]   quotient    [0:TIL-1];
+logic [D_W-1:0]   quotient_ff [0:TIL-1];
+logic             div_vld              ;
+logic             div_vld_ff           ;
+logic [TIL-1:0]   divider_vld_o        ;
+logic [D_W*2-1:0] mul_o       [0:TIL-1];
 
 assign div_vld = & divider_vld_o; 
 assign O_VLD = div_vld;
@@ -41,11 +44,13 @@ generate
             .O_VLD      (divider_vld_o[i])  
         );
 
-        safe_softmax_exp #(
+        safe_softmax_exp_pipe #(
             .D_W(16)
         )u_Exp_x(
-            .I_X  (in_exp[i] ),
-            .O_EXP(out_exp[i])
+            .I_CLK  (I_CLK     ),
+            .I_RST_N(I_RST_N   ),
+            .I_X    (in_exp[i] ),
+            .O_EXP  (out_exp[i])
         );
 
         //mul_fast#(
@@ -55,7 +60,18 @@ generate
         //    .I_IN2    ({quotient[i][15],quotient[i][6:0]}),
         //    .O_MUL_OUT(mul_o[i])
         //);
-        assign mul_o[i] = $signed(out_exp[i]) * $signed(quotient[i]);
+        assign mul_o[i] = $signed(out_exp_ff[i]) * $signed(quotient_ff[i]);
     end
 endgenerate
+always_ff@(posedge I_CLK or negedge I_RST_N)begin
+    if(!I_RST_N)begin
+        out_exp_ff  <= '{default:0};
+        quotient_ff <= '{default:0};
+        div_vld_ff  <= 'b0         ;
+    end else begin
+        out_exp_ff  <= out_exp     ;
+        quotient_ff <= quotient    ;
+        div_vld_ff  <= div_vld     ;
+    end
+end
 endmodule

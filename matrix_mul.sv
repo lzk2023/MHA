@@ -16,8 +16,8 @@ generate
             //    .I_IN2    (I_VEC[i]),
             //    .O_MUL_OUT(mat_o_mul[i][j])
             //);
-            assign O_MAT[i][j] = mat_o_mul[i][j][12] ? {mat_o_mul[i][j][31],mat_o_mul[i][j][27:13]} + 1:{mat_o_mul[i][j][31],mat_o_mul[i][j][27:13]};
-            //assign O_MAT[i][j] = {mat_o_mul[i][j][31],mat_o_mul[i][j][27:13]};
+            //assign O_MAT[i][j] = mat_o_mul[i][j][12] ? {mat_o_mul[i][j][31],mat_o_mul[i][j][27:13]} + 1:{mat_o_mul[i][j][31],mat_o_mul[i][j][27:13]};
+            assign O_MAT[i][j] = {mat_o_mul[i][j][31],mat_o_mul[i][j][27:13]};
         end
     end
 endgenerate

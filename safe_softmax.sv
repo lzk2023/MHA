@@ -157,7 +157,7 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
                 add_div_cnt  <= 0;
                 O_VLD       <= 0;
                 O_DATA      <= '{default:'b0};
-                if(I_START)begin
+                if(I_START & !O_VLD)begin
                     state       <= S_SELMAX;
                     sel_max_ena <= 1'b1;
                 end else begin

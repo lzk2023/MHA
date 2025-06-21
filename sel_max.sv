@@ -44,7 +44,7 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
                 end else begin
                     state   <= state  ;
                     stage_0 <= stage_0;
-                    O_VLD   <= O_VLD  ;
+                    O_VLD   <= 1'b0   ;
                 end
             end
             S_STAGE0 :begin

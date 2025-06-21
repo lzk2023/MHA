@@ -30,7 +30,7 @@ assign O_VLD = div_vld;
 generate
     for(genvar i=0;i<TIL;i=i+1)begin:divider_gen
         assign in_exp[i] = I_MI_OLD[i] - I_MI_NEW[i];
-        assign O_COEFFICIENT[i] = {mul_o[i][31],mul_o[i][27:13]};
+        assign O_COEFFICIENT[i] = mul_o[i][12] ? {mul_o[i][31],mul_o[i][27:13]} + 1: {mul_o[i][31],mul_o[i][27:13]};
         divider #(
             .D_W           (D_W),
             .USE_IN_SOFTMAX(0  )

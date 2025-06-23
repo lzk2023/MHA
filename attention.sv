@@ -53,7 +53,7 @@ module attention#(
     output logic [2:0]     O_BRAM_SEL_O_COL                     
 );
 localparam S_DK_VALUE = 16'd724;//0.08838*32,1/(sqrt(dk=128))
-enum logic [3:0] {
+(*MAX_FANOUT = 128 *)enum logic [3:0] {
     S_IDLE     = 4'b0000,
     S_LOAD_Q_K = 4'b0001,//load Q,K from bram
     S_Q_K      = 4'b0011,//S = Q*K^T
@@ -98,6 +98,14 @@ logic [15:0]    o_softmax_m    [0:15]      ;//new mi
 logic [15:0]    o_softmax_l    [0:15]      ;//new li
 logic           softmax_out_vld            ;
 logic [D_W-1:0] softmax_out    [0:15][0:15];
+
+logic        coef_upd_ena_ff             ;
+logic [15:0] li_old_ff       [15:0]      ;
+logic [15:0] mi_old_ff       [15:0]      ;
+logic [15:0] li_new_ff       [15:0]      ;
+logic [15:0] mi_new_ff       [15:0]      ;
+logic        coef_upd_vld_ff             ;
+logic [15:0] o_coefficient_ff[15:0]      ;
 
 logic           softmax_start_ff                ;
 logic [D_W-1:0] softmax_in_ff      [0:15][0:15] ;
@@ -445,9 +453,9 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
         coefficient  <= '{default:'b0};
         coef_upd_ena <= 1'b0;
     end else if(state == S_P_V)begin
-        if(coef_upd_vld)begin
+        if(coef_upd_vld_ff)begin
             coef_upd_ena <= 1'b0;
-            coefficient  <= o_coefficient;
+            coefficient  <= o_coefficient_ff;
         end else begin
             coef_upd_ena <= 1'b1;
         end
@@ -519,6 +527,14 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
         o_softmax_l_ff2    <= '{default:0};
         softmax_out_vld_ff2<= 'b0         ;
         softmax_out_ff2    <= '{default:0};
+
+        coef_upd_ena_ff <= 'b0            ;
+        li_old_ff       <= '{default:0}   ;
+        mi_old_ff       <= '{default:0}   ;
+        li_new_ff       <= '{default:0}   ;
+        mi_new_ff       <= '{default:0}   ;
+        coef_upd_vld_ff <= 'b0            ;
+        o_coefficient_ff<= '{default:0}   ;
     end else begin
         softmax_start_ff    <= softmax_start  ;
         softmax_in_ff       <= softmax_in     ;
@@ -546,6 +562,14 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
         o_softmax_l_ff2      <= o_softmax_l_ff1    ;
         softmax_out_vld_ff2  <= softmax_out_vld_ff1;
         softmax_out_ff2      <= softmax_out_ff1    ;
+
+        coef_upd_ena_ff      <= coef_upd_ena    ;
+        li_old_ff            <= li_old          ;
+        mi_old_ff            <= mi_old          ;
+        li_new_ff            <= li_new          ;
+        mi_new_ff            <= mi_new          ;
+        coef_upd_vld_ff      <= coef_upd_vld    ;
+        o_coefficient_ff     <= o_coefficient   ;
     end
 end
 safe_softmax_wrapper#(  
@@ -567,15 +591,15 @@ o_matrix_upd#(
     .D_W(D_W),
     .TIL(16) //tiling row == 16
 )u_o_matrix_upd(
-    .I_CLK        (I_CLK        ),
-    .I_RST_N      (I_RST_N      ),
-    .I_ENA        (coef_upd_ena ),//keep
-    .I_LI_OLD     (li_old       ),
-    .I_MI_OLD     (mi_old       ),
-    .I_LI_NEW     (li_new       ),
-    .I_MI_NEW     (mi_new       ),
-    .O_VLD        (coef_upd_vld ),
-    .O_COEFFICIENT(o_coefficient)
+    .I_CLK        (I_CLK           ),
+    .I_RST_N      (I_RST_N         ),
+    .I_ENA        (coef_upd_ena_ff ),//keep
+    .I_LI_OLD     (li_old_ff       ),
+    .I_MI_OLD     (mi_old_ff       ),
+    .I_LI_NEW     (li_new_ff       ),
+    .I_MI_NEW     (mi_new_ff       ),
+    .O_VLD        (coef_upd_vld    ),
+    .O_COEFFICIENT(o_coefficient   )
 );
 
 matrix_mul u_mat_mul(

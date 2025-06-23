@@ -32,7 +32,7 @@ logic [15:0] data_x_max;
 logic [15:0] data_e_x [0:NUM-1];
 logic [23:0] data_e_x_sum_ff;//extend 8 bits,2^10 = 1024
 logic [4:0]  cnt_sum;
-logic        cnt    ;
+logic [1:0]  cnt    ;
 logic [15:0] quotient [0:NUM-1];
 logic  [15:0] data_sum;
 logic  [1:0]  add_div_cnt;
@@ -178,13 +178,13 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
                 end
             end
             S_CAL_EXP_M :begin
-                if(cnt == 1'b1)begin
+                if(cnt == 2'b10)begin
                     state <= S_SUM;
-                    cnt   <= 1'b0;
+                    cnt   <= 2'b0;
                     exp_m_old_sub_m_new_ff <= exp_m_old_sub_m_new;
                 end else begin
                     state <= state;
-                    cnt   <= 1'b1;
+                    cnt   <= cnt + 1;
                 end
             end
             S_SUM       :begin

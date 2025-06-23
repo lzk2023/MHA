@@ -6,7 +6,7 @@ module safe_softmax_exp_pipe #(
     input  logic           I_CLK  ,
     input  logic           I_RST_N,
     input  logic [D_W-1:0] I_X    ,
-    output logic [D_W-1:0] O_EXP
+    output logic [D_W-1:0] O_EXP  //3 clk out
 );
 logic [15:0] mul_out;
 logic [15:0] mul_out_ff;
@@ -15,6 +15,7 @@ logic [7:0] uivi_ab;//absolute value
 logic [2:0]  ui;
 logic [4:0] vi;
 logic [15:0] n_2_vi;
+logic [D_W-1:0] exp_comb;
 mul_fast #(
     .IN_DW(8)
 )u_mul_in_loge(
@@ -26,8 +27,10 @@ mul_fast #(
 always_ff@(posedge I_CLK or negedge I_RST_N)begin
     if(!I_RST_N)begin
         mul_out_ff <= 'b0;
+        O_EXP      <= 'b0;
     end else begin
         mul_out_ff <= mul_out;
+        O_EXP      <= exp_comb;
     end
 end
 
@@ -37,7 +40,7 @@ assign uivi_ab = (uivi == 0) ? 0 : ~uivi[7:0] + 1'b1;
 assign ui = uivi_ab[7:5];
 assign vi = uivi_ab[4:0];
 always_comb begin
-    O_EXP = n_2_vi >> ui;
+    exp_comb = n_2_vi >> ui;
 end
 safe_softmax_lut_neg #(
     .D_W(D_W)

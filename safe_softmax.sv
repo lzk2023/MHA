@@ -75,7 +75,7 @@ generate
                 .O_EXP  (data_e_x[i]    )
             );
 
-            divider #(
+            divider_pos #(
                 .D_W           (D_W),
                 .USE_IN_SOFTMAX(1  )
             )dut_divider(
@@ -99,7 +99,7 @@ generate
                 .O_EXP(data_e_x[i])
             );
 
-            divider #(
+            divider_pos #(
                 .D_W           (D_W),
                 .USE_IN_SOFTMAX(1  )
             )dut_divider(
@@ -126,14 +126,14 @@ safe_softmax_exp_pipe #(
     .O_EXP   (exp_m_old_sub_m_new)
 );
 
-mul_fast #(
-    .IN_DW(16)
-)u_mul_in_exp(
-    .I_IN1     (I_EXP_SUM),
-    .I_IN2     ({exp_m_old_sub_m_new_ff[15],8'b0,exp_m_old_sub_m_new_ff[14:8]}),
-    .O_MUL_OUT (mul_out_48)
-);
-//DSP:assign mul_out_48 = $signed({I_EXP_SUM,8'b0}) * $signed({exp_m_old_sub_m_new_ff[15],8'b0,exp_m_old_sub_m_new_ff[14:0]});
+//mul_fast #(
+//    .IN_DW(16)
+//)u_mul_in_exp(
+//    .I_IN1     (I_EXP_SUM),
+//    .I_IN2     ({exp_m_old_sub_m_new_ff[15],8'b0,exp_m_old_sub_m_new_ff[14:8]}),
+//    .O_MUL_OUT (mul_out_48)
+//);
+assign mul_out_48 = {I_EXP_SUM} * {1'b0,8'b0,exp_m_old_sub_m_new_ff[14:8]};//positive
 
 always_ff@(posedge I_CLK or negedge I_RST_N)begin
     if(!I_RST_N)begin
@@ -190,15 +190,15 @@ always_ff@(posedge I_CLK or negedge I_RST_N)begin
             S_SUM       :begin
                 if(cnt_sum == 5'd16)begin
                     state   <= S_ADD;
-                    data_e_x_sum_ff <= data_e_x_sum_ff + {data_e_x[cnt_sum-1][15],8'd0,data_e_x[cnt_sum-1][14:0]};
+                    data_e_x_sum_ff <= data_e_x_sum_ff + {1'b0,8'd0,data_e_x[cnt_sum-1][14:0]};
                     cnt_sum <= 'd0;
                 end else if(cnt_sum == 5'd0)begin
                     state           <= state;
-                    data_e_x_sum_ff <= {mul_out_48[31],mul_out_48[19:5],8'b0};
+                    data_e_x_sum_ff <= {1'b0,mul_out_48[19:5],8'b0};
                     cnt_sum         <= cnt_sum + 1;
                 end else begin
                     state   <= state;
-                    data_e_x_sum_ff <= data_e_x_sum_ff + {data_e_x[cnt_sum-1][15],8'd0,data_e_x[cnt_sum-1][14:0]};
+                    data_e_x_sum_ff <= data_e_x_sum_ff + {1'b0,8'd0,data_e_x[cnt_sum-1][14:0]};
                     cnt_sum <= cnt_sum + 1;
                 end
             end

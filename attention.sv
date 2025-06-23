@@ -65,8 +65,6 @@ enum logic [3:0] {
     S_O_WRMEM  = 4'b1100 //upd O_new = (diag(li_new)^-1 * diag(li)*exp(mi-mi_new)) * O_old + O
 } state;
 
-logic [15:0]  o_softmax_m [0:15];//new mi
-logic [15:0]  o_softmax_l [0:15];//new li
 logic [15:0]  mi_old_bram_out[0:15];
 logic [15:0]  li_old_bram_out[0:15];
 logic [15:0]  mi_old[0:15];
@@ -94,11 +92,39 @@ logic [2:0]     sa_vld_cnt;
 logic [D_W-1:0] key_data_matrix_transpose [0:SA_R-1][0:SA_C-1]; //matrix:K^T
 logic [D_W-1:0] scale_vector [0:SA_R-1];              //vector:scale(*1/sqrt(d_k))
 
-logic [D_W-1:0] softmax_in  [0:15][0:15] ;
-logic [D_W-1:0] softmax_out [0:15][0:15] ;
+logic           softmax_start              ;
+logic [D_W-1:0] softmax_in     [0:15][0:15];
+logic [15:0]    o_softmax_m    [0:15]      ;//new mi
+logic [15:0]    o_softmax_l    [0:15]      ;//new li
+logic           softmax_out_vld            ;
+logic [D_W-1:0] softmax_out    [0:15][0:15];
 
-logic           softmax_start;
-logic           softmax_out_vld;
+logic           softmax_start_ff                ;
+logic [D_W-1:0] softmax_in_ff      [0:15][0:15] ;
+logic [15:0]    i_softmax_m_ff     [15:0]       ;
+logic [15:0]    i_softmax_l_ff     [15:0]       ;
+logic [15:0]    o_softmax_m_ff     [15:0]       ;
+logic [15:0]    o_softmax_l_ff     [15:0]       ;
+logic           softmax_out_vld_ff              ;
+logic [D_W-1:0] softmax_out_ff     [0:15][0:15] ;
+
+logic           softmax_start_ff1                ;
+logic [D_W-1:0] softmax_in_ff1      [0:15][0:15] ;
+logic [15:0]    i_softmax_m_ff1     [15:0]       ;
+logic [15:0]    i_softmax_l_ff1     [15:0]       ;
+logic [15:0]    o_softmax_m_ff1     [15:0]       ;
+logic [15:0]    o_softmax_l_ff1     [15:0]       ;
+logic           softmax_out_vld_ff1              ;
+logic [D_W-1:0] softmax_out_ff1     [0:15][0:15] ;
+
+logic           softmax_start_ff2                ;
+logic [D_W-1:0] softmax_in_ff2      [0:15][0:15] ;
+logic [15:0]    i_softmax_m_ff2     [15:0]       ;
+logic [15:0]    i_softmax_l_ff2     [15:0]       ;
+logic [15:0]    o_softmax_m_ff2     [15:0]       ;
+logic [15:0]    o_softmax_l_ff2     [15:0]       ;
+logic           softmax_out_vld_ff2              ;
+logic [D_W-1:0] softmax_out_ff2     [0:15][0:15] ;
 
 logic [D_W-1:0] mat_mul_mat_in [0:SA_R-1][0:SA_C-1];
 logic [D_W-1:0] mat_mul_vec_in [0:SA_R-1]          ;
@@ -253,17 +279,23 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                 end
             end
             S_SCALE   :begin
-                state         <= S_SOFTMAX    ;
-                softmax_start <= 1            ;
-                softmax_in    <= mat_mul_mat_o;//S/sqrt(d_k)
-                mi_old        <= mi_old_bram_out;
-                li_old        <= li_old_bram_out;
+                if(cnt == 2'b01)begin
+                    state         <= S_SOFTMAX    ;
+                    softmax_start <= 1            ;
+                    softmax_in    <= mat_mul_mat_o;//S/sqrt(d_k)
+                    mi_old        <= mi_old_bram_out;
+                    li_old        <= li_old_bram_out;
+                    cnt           <= 2'b00          ;
+                end else begin
+                    state         <= state           ;
+                    cnt           <= 2'b01           ;
+                end
             end
             S_SOFTMAX :begin
-                if(softmax_out_vld)begin
-                    O_MAT_1       <= softmax_out    ;
-                    mi_new        <= o_softmax_m    ;
-                    li_new        <= o_softmax_l    ;
+                if(softmax_out_vld_ff2)begin
+                    O_MAT_1       <= softmax_out_ff2 ;
+                    mi_new        <= o_softmax_m_ff2 ;
+                    li_new        <= o_softmax_l_ff2 ;
                     state         <= S_P_V          ;
                     O_SA_LOAD     <= 1              ;
                     softmax_start <= 0              ;
@@ -329,13 +361,14 @@ always@(posedge I_CLK or negedge I_RST_N)begin
                     sel_col          <= sel_col        ;
                     cnt              <= 2'd1           ;
                 end else if(cnt == 2'd1)begin
-                    state            <= state          ;
                     cnt              <= 2'd2           ;
+                end else if(cnt == 2'd2)begin
+                    cnt              <= 2'd3           ;
                     matrix_adder_in1 <= mat_mul_mat_o  ;
                     for(int n=0;n<SA_R;n=n+1)begin
                         matrix_adder_in2[n] <= O_ATTN_DATA[n][sel_col*16 +: 16];
                     end
-                end else if(cnt == 2'd2)begin
+                end else if(cnt == 2'd3)begin
                     if(sel_col == 3'd7)begin
                         state <= S_O_WRMEM;
                         O_BRAM_O_ENA    <= 1'b1   ;
@@ -458,15 +491,72 @@ li_ram u_li_ram (
   .douta(li_douta)  // output wire [255 : 0] douta
 );
 /////////////////////////mi & li bram/////////////////////////////////////
+always_ff@(posedge I_CLK or negedge I_RST_N)begin
+    if(!I_RST_N)begin
+        softmax_start_ff  <= 'b0         ;
+        softmax_in_ff     <= '{default:0};
+        i_softmax_m_ff    <= '{default:0};
+        i_softmax_l_ff    <= '{default:0};
+        o_softmax_m_ff    <= '{default:0};
+        o_softmax_l_ff    <= '{default:0};
+        softmax_out_vld_ff<= 'b0         ;
+        softmax_out_ff    <= '{default:0};
+        
+        softmax_start_ff1  <= 'b0         ;
+        softmax_in_ff1     <= '{default:0};
+        i_softmax_m_ff1    <= '{default:0};
+        i_softmax_l_ff1    <= '{default:0};
+        o_softmax_m_ff1    <= '{default:0};
+        o_softmax_l_ff1    <= '{default:0};
+        softmax_out_vld_ff1<= 'b0         ;
+        softmax_out_ff1    <= '{default:0};
+
+        softmax_start_ff2  <= 'b0         ;
+        softmax_in_ff2     <= '{default:0};
+        i_softmax_m_ff2    <= '{default:0};
+        i_softmax_l_ff2    <= '{default:0};
+        o_softmax_m_ff2    <= '{default:0};
+        o_softmax_l_ff2    <= '{default:0};
+        softmax_out_vld_ff2<= 'b0         ;
+        softmax_out_ff2    <= '{default:0};
+    end else begin
+        softmax_start_ff    <= softmax_start  ;
+        softmax_in_ff       <= softmax_in     ;
+        i_softmax_m_ff      <= mi_old         ;
+        i_softmax_l_ff      <= li_old         ;
+        o_softmax_m_ff      <= o_softmax_m    ;
+        o_softmax_l_ff      <= o_softmax_l    ;
+        softmax_out_vld_ff  <= softmax_out_vld;
+        softmax_out_ff      <= softmax_out    ;
+
+        softmax_start_ff1    <= softmax_start_ff  ;
+        softmax_in_ff1       <= softmax_in_ff     ;
+        i_softmax_m_ff1      <= i_softmax_m_ff    ;
+        i_softmax_l_ff1      <= i_softmax_l_ff    ;
+        o_softmax_m_ff1      <= o_softmax_m_ff    ;
+        o_softmax_l_ff1      <= o_softmax_l_ff    ;
+        softmax_out_vld_ff1  <= softmax_out_vld_ff;
+        softmax_out_ff1      <= softmax_out_ff    ;
+
+        softmax_start_ff2    <= softmax_start_ff1  ;
+        softmax_in_ff2       <= softmax_in_ff1     ;
+        i_softmax_m_ff2      <= i_softmax_m_ff1    ;
+        i_softmax_l_ff2      <= i_softmax_l_ff1    ;
+        o_softmax_m_ff2      <= o_softmax_m_ff1    ;
+        o_softmax_l_ff2      <= o_softmax_l_ff1    ;
+        softmax_out_vld_ff2  <= softmax_out_vld_ff1;
+        softmax_out_ff2      <= softmax_out_ff1    ;
+    end
+end
 safe_softmax_wrapper#(  
     .D_W(D_W)
 )u_softmax_wrapper_for_attn(
     .I_CLK      (I_CLK          ),
     .I_RST_N    (I_RST_N        ),
-    .I_START    (softmax_start  ),//keep when calculate
-    .I_DATA     (softmax_in     ),
-    .I_X_MAX    (mi_old         ),
-    .I_EXP_SUM  (li_old         ),
+    .I_START    (softmax_start_ff2),//keep when calculate
+    .I_DATA     (softmax_in_ff2   ),
+    .I_X_MAX    (i_softmax_m_ff2  ),
+    .I_EXP_SUM  (i_softmax_l_ff2  ),
     .O_X_MAX    (o_softmax_m    ),
     .O_EXP_SUM  (o_softmax_l    ),
     .O_VLD      (softmax_out_vld),
@@ -489,9 +579,11 @@ o_matrix_upd#(
 );
 
 matrix_mul u_mat_mul(
-    .I_MAT(mat_mul_mat_in),
-    .I_VEC(mat_mul_vec_in),
-    .O_MAT(mat_mul_mat_o )
+    .I_CLK  (I_CLK         ),
+    .I_RST_N(I_RST_N       ),
+    .I_MAT  (mat_mul_mat_in),
+    .I_VEC  (mat_mul_vec_in),
+    .O_MAT  (mat_mul_mat_o )
 );
 
 matrix_add#(

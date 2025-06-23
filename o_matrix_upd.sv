@@ -11,7 +11,7 @@ module o_matrix_upd#(
     input  logic [D_W-1:0]   I_LI_NEW [0:TIL-1]     ,
     input  logic [D_W-1:0]   I_MI_NEW [0:TIL-1]     ,
     output logic             O_VLD                  ,
-    output logic [D_W-1:0]   O_COEFFICIENT [0:TIL-1]
+    output logic [D_W-1:0]   O_COEFFICIENT [0:TIL-1]//positive
 );
 
 logic [D_W-1:0]   in_exp      [0:TIL-1];
@@ -31,7 +31,7 @@ generate
     for(genvar i=0;i<TIL;i=i+1)begin:divider_gen
         assign in_exp[i] = I_MI_OLD[i] - I_MI_NEW[i];
         assign O_COEFFICIENT[i] = mul_o[i][12] ? {mul_o[i][31],mul_o[i][27:13]} + 1: {mul_o[i][31],mul_o[i][27:13]};
-        divider #(
+        divider_pos #(
             .D_W           (D_W),
             .USE_IN_SOFTMAX(0  )
         )dut_divider(
@@ -60,7 +60,7 @@ generate
         //    .I_IN2    ({quotient[i][15],quotient[i][6:0]}),
         //    .O_MUL_OUT(mul_o[i])
         //);
-        assign mul_o[i] = $signed(out_exp_ff[i]) * $signed(quotient_ff[i]);
+        assign mul_o[i] = out_exp_ff[i] * quotient_ff[i];//positive
     end
 endgenerate
 always_ff@(posedge I_CLK or negedge I_RST_N)begin

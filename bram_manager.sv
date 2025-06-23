@@ -27,10 +27,10 @@ module bram_manager(
     output logic [15:0] O_MAT_O [0:15][0:15] 
 );
 
-logic          cnt_q;
-logic          cnt_k;
-logic          cnt_v;
-logic          cnt_o;
+logic [1:0]     cnt_q;
+logic [1:0]     cnt_k;
+logic [1:0]     cnt_v;
+logic [1:0]     cnt_o;
 logic [8:0]    addra_q;
 logic [8:0]    addra_k;
 logic [8:0]    addra_v;
@@ -104,65 +104,65 @@ endgenerate
 
 always_ff@(posedge I_CLK or negedge I_RST_N)begin
     if(!I_RST_N)begin
-        cnt_q   <= 1'b0;
+        cnt_q   <= 2'b0;
         O_VLD_Q <= 1'b0;
     end else if(I_ENA_Q)begin
-        cnt_q <= ~cnt_q;
-        if(cnt_q == 1'b1)begin
+        cnt_q <= cnt_q + 1;
+        if(cnt_q == 2'b01)begin
             O_VLD_Q <= 1'b1;
         end else begin
             O_VLD_Q <= 1'b0;
         end
     end else begin
-        cnt_q   <= 1'b0;
+        cnt_q   <= 2'b0;
         O_VLD_Q <= 1'b0;
     end
 end
 always_ff@(posedge I_CLK or negedge I_RST_N)begin
     if(!I_RST_N)begin
-        cnt_k   <= 1'b0;
+        cnt_k   <= 2'b0;
         O_VLD_K <= 1'b0;
     end else if(I_ENA_K)begin
-        cnt_k <= ~cnt_k;
-        if(cnt_k == 1'b1)begin
+        cnt_k <= cnt_k + 1;
+        if(cnt_k == 2'b01)begin
             O_VLD_K <= 1'b1;
         end else begin
             O_VLD_K <= 1'b0;
         end
     end else begin
-        cnt_k   <= 1'b0;
+        cnt_k   <= 2'b0;
         O_VLD_K <= 1'b0;
     end
 end
 always_ff@(posedge I_CLK or negedge I_RST_N)begin
     if(!I_RST_N)begin
-        cnt_v   <= 1'b0;
+        cnt_v   <= 2'b0;
         O_VLD_V <= 1'b0;
     end else if(I_ENA_V)begin
-        cnt_v <= ~cnt_v;
-        if(cnt_v == 1'b1)begin
+        cnt_v <= cnt_v + 1;
+        if(cnt_v == 2'b01)begin
             O_VLD_V <= 1'b1;
         end else begin
             O_VLD_V <= 1'b0;
         end
     end else begin
-        cnt_v   <= 1'b0;
+        cnt_v   <= 2'b0;
         O_VLD_V <= 1'b0;
     end
 end
 always_ff@(posedge I_CLK or negedge I_RST_N)begin
     if(!I_RST_N)begin
-        cnt_o   <= 1'b0;
+        cnt_o   <= 2'b0;
         O_VLD_O <= 1'b0;
     end else if(I_ENA_O & ~I_WEA_O)begin
-        cnt_o <= ~cnt_o;
-        if(cnt_o == 1'b1)begin
+        cnt_o <= cnt_o + 1;
+        if(cnt_o == 2'b01)begin
             O_VLD_O <= 1'b1;
         end else begin
             O_VLD_O <= 1'b0;
         end
     end else begin
-        cnt_o   <= 1'b0;
+        cnt_o   <= 2'b0;
         O_VLD_O <= 1'b0;
     end
 end

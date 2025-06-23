@@ -48,7 +48,7 @@ initial begin
             I_RD_BRAM_EN   <= 1'b1;
             I_RD_BRAM_LINE <= i;
             I_RD_BRAM_COL  <= j;
-            wait(O_BRAM_RD_VLD)
+            wait(dut_flash_attn.O_BRAM_RD_VLD)
             @(posedge I_CLK)
             I_RD_BRAM_EN   <= 1'b0;
         end
@@ -79,7 +79,7 @@ initial begin
 end
 always@(posedge I_CLK)begin
     if(O_ATTN_END)begin
-        if(O_BRAM_RD_VLD)begin
+        if(dut_flash_attn.O_BRAM_RD_VLD)begin
             $fdisplay(save_file,"%b",O_BRAM_RD_MAT);
         end
     end
